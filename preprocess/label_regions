@@ -61,6 +61,9 @@ def label_regions_fast(region, positive, ambiguous, labels):
             if ambiguous != None:
                 a_line = amb.readline()
                 read_a = True
+            else:
+                a_line = None
+                read_a = False
 
             i = 0
             while p_line or r_line or ((read_a) and a_line):
@@ -166,22 +169,23 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     ############################################
     ### ambigous
     amb_intersects = []
-    if len(ambiguous) != 0 :
+    if ambiguous != None :
         assert(len(positives) == len(ambiguous))
     # unzip all the positive inputs to tmpDir
     a_unzips = []
-    for a_orig in ambiguous:
-        if a_orig == None:
-            a_unzip = ""
-        else:
-            if a_orig[-3:] == ".gz":
-                # basename extracts the last part of the path, the filename
-                a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
-                os.system("gunzip -c " + a_orig + " | bedtools sort > " + a_unzip)
+    if ambiguous != None:
+        for a_orig in ambiguous:
+            if a_orig == None:
+                a_unzip = ""
             else:
-                a_unzip = tmpDir + basename(a_orig)
-                os.system("cat "       + a_orig + " | bedtools sort > " + a_unzip)
-        a_unzips.append(a_unzip)
+                if a_orig[-3:] == ".gz":
+                    # basename extracts the last part of the path, the filename
+                    a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
+                    os.system("gunzip -c " + a_orig + " | bedtools sort > " + a_unzip)
+                else:
+                    a_unzip = tmpDir + basename(a_orig)
+                    os.system("cat "       + a_orig + " | bedtools sort > " + a_unzip)
+            a_unzips.append(a_unzip)
 
     ############################################
     # sort and merge the positives 
