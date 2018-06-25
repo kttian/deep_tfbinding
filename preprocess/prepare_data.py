@@ -1,6 +1,6 @@
 import os
 
-resultsDir = "../results1/"
+resultsDir = "../results/"
 dataDir    = "../ENCODE_data/"
 genomeDir  = "../genome/"
 tmpDir     = "./tmp/"
@@ -10,8 +10,6 @@ ambiguous = []
 
 os.chdir(resultsDir)
 os.system("mkdir -p " + tmpDir)
-
-from label_regions import label_regions_multitask
 
 # loop through the TFs
 for tf in ['ZNF143']:
@@ -29,7 +27,7 @@ for tf in ['ZNF143']:
         positive = dataDir + cell + "-" + tf + "-human-" + exp + "-optimal_idr.narrowPeak.gz"
         positives.append(positive)
         header += "\t" + exp
-        merged = "empty_file"
+        merged = tmp_empty_file
         # merged = ""
         if rep == 1: # bit0 == 1, has rep1
             rep1 = cell + "-" + tf + "-human-" + exp + "-rep1.narrowPeak.gz"
@@ -75,7 +73,7 @@ for tf in ['ZNF143']:
 
     labels_multitask    = labels_multitask_gz[:-3]
 
-    os.system("gunzip -c " + labels_multitask_gz " > " + labels_multitask)
+    os.system("gunzip -c " + labels_multitask_gz +  " > " + labels_multitask)
 
     tmp_labels_wo_title = tmpDir + "_tmp_labels_without_title.txt"
 
@@ -100,7 +98,7 @@ for tf in ['ZNF143']:
         os.system("rm -f " + tmp_file)
 
     print("split and make hdf5")
-    os.system("mkdir splits")
+    os.system("mkdir -p splits")
     #make the splits
     os.system("gunzip -c labels.txt.gz | perl -lane 'if ($.%10 !=1 and $.%10 != 2) {print $F[0]}' | gzip -c > splits/train.txt.gz")
     os.system("gunzip -c labels.txt.gz | perl -lane 'if ($.%10==1 and $. > 1) {print $F[0]}' | gzip -c > splits/valid.txt.gz")

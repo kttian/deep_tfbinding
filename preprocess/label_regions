@@ -76,7 +76,8 @@ def label_regions_fast(region, positive, ambiguous, labels):
                     read_a = True
                 else: # 
                     out = 0
-                # print("step ", i, r_line, p_line, a_line, out)
+                #if i % 10000 == 0:
+                #    print("step ", i, r_line, p_line, a_line, out)
 
                 lab.write(str(out) + "\n")
                 r_line = reg.readline()
@@ -191,6 +192,8 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
         os.system(cmd)
         regions = tmp_regions
 
+    print("LABEL_REGIONS sort merge done")
+
     # unify the core region lengths to multiple of strides
     tmp_core_regions = tmpDir + "_tmp_core_regions.tsv"
     unify_core_lengths(regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
@@ -218,6 +221,8 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     os.system("bedtools slop -i " + tmp_core_regions + " -g " + \
         chrom_sizes + " -b " + str(flank_size) + " > " + tmp_expanded_regions)
 
+    print("LABEL_REGIONS intersect done")
+
     # label regions for each task and paste to the regions
     for i in range(len(positives)):
         tmp_labels = tmpDir + "_tmp_labels_" + str(i) + ".tsv"
@@ -230,6 +235,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
         os.system("paste " + tmp_expanded_regions + " " + tmp_labels + " > " + tmp_paste)
         os.system("mv -f " + tmp_paste + " " + tmp_expanded_regions)
 
+    print("LABEL_REGIONS labels done")
     # shuffle the lines
     os.system("shuf " + tmp_expanded_regions + " | gzip > " + labels_multitask)
 
@@ -237,6 +243,8 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     os.system("rm -f " + tmp_regions + ";" +
               "rm -f " + tmp_core_regions + ";" +
               "rm -f " + tmp_expanded_regions + ";")
+
+    print("LABEL_REGIONS ALL DONE *****")
 
 
 # argument parsing borrowed from tf-dragonn labelregions so that we are compatable
