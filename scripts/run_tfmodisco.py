@@ -79,7 +79,6 @@ onehot_data = np.array([one_hot_encode_along_channel_axis(x.rstrip())
 scores_loc = []
 for i in range(num_tasks):
     loc_i = "../results/scores/rescale_conv_revealcancel_fc_multiref_10_task_" + str(i) + ".npy"
-    print(temp_loc)
     scores_loc.append(loc_i)
 
 # scores & their one-hot encodings
