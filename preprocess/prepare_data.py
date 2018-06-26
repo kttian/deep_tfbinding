@@ -60,10 +60,7 @@ for tf in ['ZNF143']:
     #
     # labels_multitask_gz = "tflabel.intervals_file.tsv.gz"
     # cmd = "tfdragonn labelregions " + positives_str + ambiguous_str + \
-    #       " --genome hg19 --prefix tflabel" #       + " --background background " 
-    #
-    # cmd = "../scripts/intervals_comments.py " + positives_str + ambiguous_str + \
-    #       " --genome hg19 --prefix tflabel" 
+    #       " --genome hg19 --prefix tflabel" #       + " --background background "
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = "../scripts/label_regions " + positives_str + ambiguous_str + \

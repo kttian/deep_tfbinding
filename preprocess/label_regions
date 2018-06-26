@@ -7,11 +7,13 @@ import argparse
 tmpDir    = "./tmp/"
 genomeDir = "../genome/"
 
-#import csv
-def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
-    with open(in_name,'r') as tsvin, open(out_name, 'w') as tsvout:
 
-        # tsvin = csv.reader(tsvin, delimiter='\t')
+def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
+    """
+        takes in regions and expands region lengths to be a multiple of stride (50)
+        outputs a list of regions, result of sliding window of length bin_size (200)
+    """
+    with open(in_name,'r') as tsvin, open(out_name, 'w') as tsvout:
         # for row in tsvin:
         for cnt, line in enumerate(tsvin):
             row = line.split()
@@ -19,12 +21,10 @@ def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
             start = int(row[1])
             end   = int(row[2])
 
-            #center = int((start + end - 1)/2);
             peak_length = end - start
             total_length = stride * int( (peak_length + stride - 1 )/stride )
-            # stride * ceiling = smallest multiple of stride greater than peak_length
+            # total_length = stride * ceiling = smallest multiple of stride greater than peak_length
 
-            # the -1 at the end of the line is to align with tfgragonn labelregions
             extend_left = int((total_length - peak_length)/2)
             extend_left = 0
             extend_right = total_length - peak_length - extend_left
@@ -32,30 +32,38 @@ def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
             left = start - extend_left
             right = end + extend_right
 
-            for st in range(left, right - bin_size + 1, stride):
-                tsvout.write(chrom + "\t" + str(st) + "\t" + str(st+bin_size) + "\n")
+            # write out the new "unified" intervals
+            for le in range(left, right - bin_size + 1, stride):
+                tsvout.write(chrom + "\t" + str(le) + "\t" + str(le + bin_size) + "\n")
+
 
 import contextlib
 @contextlib.contextmanager
 def dummy_context_mgr():
     yield None
 
+
 def label_regions_fast(region, positive, ambiguous, labels):
-    """ label genome regions for one task
-    O(n) algo to go through intervals in region file and label them, 
-    assuming regions, positives, ambiguous files are all sorted.
+    """
+        label regions for one task
+        O(n) to go through intervals in region file and label them
+        assuming regions, positives, ambiguous files are all sorted
+
+        Parameters
+        ----------
+        region:     input file with list of intervals to be labeled
+        positive:   input file with list of positive intersecting intervals (subset of region)
+        ambiguous:  input file with list of ambiguous intersecting intervals (subset of region)
+        labels:     output file with one column of labels
     """
     
     # Open the file with read only permit
-    with open(region,'r') as reg, open(positive, 'r') as pos, \
-        open (labels, 'w') as lab:
+    with open(region,'r') as reg, open(positive, 'r') as pos, open (labels, 'w') as lab:
+        
         # conditional with block
-        with open(ambiguous, 'r') \
-            if ambiguous != None else dummy_context_mgr() as amb:
+        with open(ambiguous, 'r') if ambiguous != None else dummy_context_mgr() as amb:
 
-            read_p = True
-            read_a = False
-
+            # read in p_line, r_line, and a_line from files
             p_line = pos.readline()
             r_line = reg.readline()
             if ambiguous != None:
@@ -65,11 +73,11 @@ def label_regions_fast(region, positive, ambiguous, labels):
                 a_line = None
                 read_a = False
 
-            i = 0
-            while p_line or r_line or ((read_a) and a_line):
-                read_p = False
-                read_a = False
-                if r_line == p_line: # positive, over write -1
+            # iterate through regions & determine labels
+            while r_line:
+                read_p = False # if p matched r and we should move to next positive interval
+                read_a = False # if a matched r ...
+                if r_line == p_line: # positive
                     out = 1
                     read_p = True
                     if r_line == a_line:
@@ -77,63 +85,26 @@ def label_regions_fast(region, positive, ambiguous, labels):
                 elif r_line == a_line: # ambiguous
                     out = -1
                     read_a = True
-                else: # 
+                else: # negative
                     out = 0
-                #if i % 10000 == 0:
-                #    print("step ", i, r_line, p_line, a_line, out)
 
                 lab.write(str(out) + "\n")
+
                 r_line = reg.readline()
                 if read_p:
                     p_line = pos.readline()
                 if read_a:
                     a_line = amb.readline()
-                i = i + 1
-
 # can be simplified if we use intersect -c
 
-AMBIG_LABEL = -1
-
-# https://stackoverflow.com/questions/45768262/numpy-equivalent-of-if-else-without-loop
-'''
-Approach #1 One approach -
-
-keep_mask = x==50
-out = np.where(x>50,0,1)
-out[keep_mask] = 50
-
-Approach #2 Alternatively, for in-situ edit -
-
-replace_mask = x!=50
-x[replace_mask] = np.where(x>50,0,1)[replace_mask]
-# Or (x<=50).astype(int) in place of np.where(x>50,0,1)
-
-Code-golf? If you actually want to play code-golf/one-liner -
-(x<=50)+(x==50)*49
-'''
-
-#http://wesmckinney.com/blog/a-new-high-performance-memory-efficient-file-parser-engine-for-pandas/
-import numpy as np
-def label_regions(region, positive, ambiguous, labels):
-    pos = np.genfromtxt(positive,  dtype=np.int8)
-    p_label = (pos != 0) #.astype(np.int8)
-    if ambiguous != None:
-        amb = np.genfromtxt(ambiguous, dtype=np.int8)
-        a_label = (amb != 0) #.astype(np.int8)
-
-        p_label[(p_label == 0) * (a_label == 1)] = AMBIG_LABEL
-        #print p_label
-
-    np.savetxt(labels, p_label, fmt="%d")
-    
-    
 
 def label_regions_multitask(labels_multitask, chrom_sizes, positives, 
                             ambiguous = None, regions = None,
                             bin_size=200, flank_size=400, stride=50,
                             n_jobs=1, genome='hg19',
                             min_bin_distance_to_chrom_edge=5000):
-    """ label genome regions to generate labels for multitask training
+    """ 
+    generate labels for multitask training
 
     Parameters
     ----------
@@ -147,39 +118,37 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     regions          : (not supported yet) 
                        total regions being labeled. If not specified, 
                        use the union of positives
-    Examples
-    --------
     """
     os.system("mkdir -p " + tmpDir)
 
     ############################################
     ### positives
-    pos_intersects = []
-    # unzip all the positive inputs to tmpDir
+    
+    # unzip the original positive input interval files from each task to tmpDir
     p_unzips = []
     for p_orig in positives:
         if p_orig[-3:] == ".gz":
-            p_unzip = tmpDir + basename(p_orig[:-3]) # remove ".gz"
-            os.system("gunzip -c " + p_orig + " | bedtools sort > " + p_unzip)
+            # basename extracts the last part of the path, the filename
+            p_unzip = tmpDir + basename(p_orig[:-3]) # remove ".gz" from filename
+            os.system("gunzip -c " + p_orig + " | bedtools sort > " + p_unzip) # unzip and sort p_orig to p_unzip
         else:
             p_unzip = tmpDir + basename(p_orig)
-            os.system("cat "       + p_orig + " | bedtools sort > " + p_unzip)
+            os.system("cat "       + p_orig + " | bedtools sort > " + p_unzip) # copy and sort p_orig to p_unzip
         p_unzips.append(p_unzip)
 
     ############################################
     ### ambigous
-    amb_intersects = []
-    if ambiguous != None :
-        assert(len(positives) == len(ambiguous))
-    # unzip all the positive inputs to tmpDir
-    a_unzips = []
+
+    # unzip all original ambiguous input intervals to tmpDir
     if ambiguous != None:
+        assert(len(positives) == len(ambiguous)) # ensure same number of tasks
+        
+        a_unzips = []
         for a_orig in ambiguous:
             if a_orig == None:
                 a_unzip = ""
             else:
                 if a_orig[-3:] == ".gz":
-                    # basename extracts the last part of the path, the filename
                     a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
                     os.system("gunzip -c " + a_orig + " | bedtools sort > " + a_unzip)
                 else:
@@ -188,8 +157,10 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
             a_unzips.append(a_unzip)
 
     ############################################
-    # sort and merge the positives 
+    
+    # if no background regions were specified, use the union of positives as regions
     if regions == None:
+        # sort and merge the positives 
         tmp_regions = tmpDir + "_tmp_peaks_merge.tsv"
         cmd = "cat " + " ".join(p_unzips) + \
             " | cut -f 1-3 | bedtools sort | bedtools merge > " + tmp_regions
@@ -203,6 +174,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     unify_core_lengths(regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
 
     # generate intersects with positives
+    pos_intersects = []
     for p in p_unzips:
         p_intersect = tmpDir + "_tmp_pint_" + basename(p)
         os.system("bedtools intersect -a " + tmp_core_regions + " -b " + p + \
@@ -212,6 +184,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
         pos_intersects.append(p_intersect)
 
     # generate intersects with ambiguous
+    amb_intersects = []
     for a in a_unzips:
         a_intersect = tmpDir + "_tmp_aint_" + basename(a)
         os.system("bedtools intersect -a " + tmp_core_regions + " -b " + a + \
@@ -290,16 +263,15 @@ def run_label_regions_from_args():
         else:
             ambiguous = None
         path_to_dataset_intervals_file = os.path.abspath("{}.intervals_file.tsv.gz".format(args.prefix))
-        print(path_to_dataset_intervals_file)
+        #print(path_to_dataset_intervals_file)
         label_regions_multitask(path_to_dataset_intervals_file,
                                 genomeDir + "hg19.chrom.sizes", 
                                 positives, ambiguous=ambiguous, regions=args.background, 
                                 bin_size=args.bin_size, flank_size=args.flank_size, 
                                 stride=args.stride, genome=args.genome, n_jobs=args.n_jobs)
     else:
-        raise RuntimeError("Must pass positives, background, and task names!")
+        raise RuntimeError("Must pass in positives, background, and task names!")
 
 if __name__ == '__main__':
-    #run_label_regions_from_args(sys.argv[1:])
     run_label_regions_from_args()
 
