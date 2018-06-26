@@ -87,19 +87,23 @@ for tf in ['ZNF143']:
     os.system("echo " + header + " > labels.txt")
     os.system("cat " + tmp_labels_wo_title + " >> labels.txt")
 
-    os.system("gzip -f labels.txt")
-    os.system("gzip -f inputs.fa")
-
     #remove the intermediate files
     for tmp_file in tmp_file_list:
         os.system("rm -f " + tmp_file)
 
     print("split and make hdf5")
     os.system("mkdir -p splits")
+
     #make the splits
-    os.system("gunzip -c labels.txt.gz | perl -lane 'if ($.%10 !=1 and $.%10 != 2) {print $F[0]}' | gzip -c > splits/train.txt.gz")
-    os.system("gunzip -c labels.txt.gz | perl -lane 'if ($.%10==1 and $. > 1) {print $F[0]}' | gzip -c > splits/valid.txt.gz")
-    os.system("gunzip -c labels.txt.gz | perl -lane 'if ($.%10==2) {print $F[0]}' | gzip -c > splits/test.txt.gz")
+    valid_chrom = "chr2"
+    test_chrom  = "chr1"
+
+    os.system("cat labels.txt | grep " + valid_chrom + ": | gzip -c > splits/valid.txt.gz")
+    os.system("cat labels.txt | grep " + test_chrom  + ": | gzip -c > splits/test.txt.gz")
+    os.system("cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrome + "\" | gzip -c > splits/train.txt.gz")
+
+    os.system("gzip -f labels.txt")
+    os.system("gzip -f inputs.fa")
 
     os.system("make_hdf5 --yaml_configs make_hdf5_yaml/* --output_dir .")
 
