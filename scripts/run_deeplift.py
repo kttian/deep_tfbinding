@@ -1,11 +1,34 @@
 from __future__ import print_function
 
-resultsDir = "../results/"
-input_file = "test.fa"
-
 import datetime
 start = datetime.datetime.now()
 print ("start time " + str(start))
+
+# ### Load the keras model
+import deeplift
+import deeplift.conversion.kerasapi_conversion as kc
+from keras.models import model_from_json
+
+#load the keras model
+    
+#keras_model_weights = "../results/model_files/record_2_model_9BnmY_modelWeights.h5"
+#keras_model_json = "../results/model_files/record_2_model_9BnmY_modelJson.json"
+#input_file = "test.fa"
+
+import sys
+if len(sys.argv) != 3:
+    print("Syntax: ", sys.argv[0] , " <model name> <sequence file>")
+    quit()
+
+keras_model_weights = sys.argv[1] + "Weights.h5"
+keras_model_json    = sys.argv[1] + "Json.json"
+input_file          = sys.argv[2]
+
+print("loading models from ", keras_model_json, " ", keras_model_weights)
+keras_model = model_from_json(open(keras_model_json).read())
+keras_model.load_weights(keras_model_weights)
+
+print("input sequence file is ", input_file)
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -22,7 +45,7 @@ def fasta_iter(fasta_name):
         yield header, seq
 
 sequences = []
-fasta = fasta_iter(resultsDir + input_file)
+fasta = fasta_iter(input_file)
 for header, seq in fasta:   
     sequences.append(seq)
 print(len(sequences))
@@ -67,18 +90,6 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
             
 onehot_data = np.array([one_hot_encode_along_row_axis(seq) for seq in sequences])
 #print(onehot_data.shape())
-
-# ### Load the keras model
-import deeplift
-import deeplift.conversion.kerasapi_conversion as kc
-from keras.models import model_from_json
-
-#load the keras model
-keras_model_weights = "../results/model_files/record_2_model_9BnmY_modelWeights.h5"
-keras_model_json = "../results/model_files/record_2_model_9BnmY_modelJson.json"
-keras_model = model_from_json(open(keras_model_json).read())
-keras_model.load_weights(keras_model_weights)
-
 
 # ## Prepare the deeplift models
 # 
