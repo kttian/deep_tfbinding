@@ -47,6 +47,11 @@ def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, 
             start = int(row[1])
             end   = int(row[2])
 
+            if chrom[4] == 'M' or chrom[4] == 'm':
+                continue
+            if len(chrom) > 5:
+                continue
+
             peak_length = end - start
             if expand :
                 # total_length = stride * ceiling = smallest multiple of stride greater than peak_length
@@ -164,7 +169,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
         if p_orig[-3:] == ".gz":
             # basename extracts the last part of the path, the filename
             p_unzip = tmpDir + basename(p_orig[:-3]) # remove ".gz" from filename
-            os.system("gunzip -c " + p_orig + " | bedtools sort > " + p_unzip) # unzip and sort p_orig to p_unzip
+            os.system("pigz -d -c " + p_orig + " | bedtools sort > " + p_unzip) # unzip and sort p_orig to p_unzip
         else:
             p_unzip = tmpDir + basename(p_orig)
             os.system("cat "       + p_orig + " | bedtools sort > " + p_unzip) # copy and sort p_orig to p_unzip
@@ -184,7 +189,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
             else:
                 if a_orig[-3:] == ".gz":
                     a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
-                    os.system("gunzip -c " + a_orig + " | bedtools sort > " + a_unzip)
+                    os.system("pigz -d -c " + a_orig + " | bedtools sort > " + a_unzip)
                 else:
                     a_unzip = tmpDir + basename(a_orig)
                     os.system("cat "       + a_orig + " | bedtools sort > " + a_unzip)
@@ -275,7 +280,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
 
     logging.info("LABEL_REGIONS labels done")
     # shuffle the lines
-    os.system("shuf " + tmp_expanded_regions + " | gzip > " + labels_multitask)
+    os.system("shuf " + tmp_expanded_regions + " | pigz > " + labels_multitask)
 
     # clean up temp files generated
     os.system("rm -f " + tmp_regions + ";" +

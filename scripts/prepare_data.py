@@ -64,8 +64,8 @@ def process_tf(tf):
             tmp_merged = tmpDir + "_tmp_" + cell + "-" + tf + "-human-" + exp + "-merged.narrowPeak.gz"
             tmp_file_list.append(tmp_merged)
             merged = tmp_merged
-            os.system("gunzip -c " + dataDir+rep1 + " " + dataDir+rep2 + \
-                      " | cut -f 1-3 | bedtools sort | bedtools merge | gzip -c > " + merged)
+            os.system("pigz -d -c " + dataDir+rep1 + " " + dataDir+rep2 + \
+                      " | cut -f 1-3 | bedtools sort | bedtools merge | pigz -c > " + merged)
         ambiguous.append(merged)
 
     if positives != []:
@@ -94,7 +94,7 @@ def process_tf(tf):
 
     labels_multitask    = labels_multitask_gz[:-3]
 
-    os.system("gunzip -c " + labels_multitask_gz +  " > " + labels_multitask)
+    os.system("pigz -d -c " + labels_multitask_gz +  " > " + labels_multitask)
 
     tmp_labels_wo_title = tmpDir + "_tmp_labels_without_title.txt"
 
@@ -122,13 +122,13 @@ def process_tf(tf):
     valid_chrom = "chr2"
     test_chrom  = "chr1"
 
-    os.system("cat labels.txt | grep " + valid_chrom + ": | gzip -c > splits/valid.txt.gz")
-    os.system("cat labels.txt | grep " + test_chrom  + ": | gzip -c > splits/test.txt.gz")
-    cmd = "cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrom + ":\|^id" + "\" | gzip -c > splits/train.txt.gz"
+    os.system("cat labels.txt | grep " + valid_chrom + ": | pigz -c > splits/valid.txt.gz")
+    os.system("cat labels.txt | grep " + test_chrom  + ": | pigz -c > splits/test.txt.gz")
+    cmd = "cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrom + ":\|^id" + "\" | pigz -c > splits/train.txt.gz"
     os.system(cmd)
 
-    os.system("gzip -f labels.txt")
-    os.system("gzip -f inputs.fa")
+    os.system("pigz -f labels.txt")
+    #os.system("pigz -f inputs.fa")
 
     os.system("make_hdf5 --yaml_configs make_hdf5_yaml/* --output_dir .")
 
@@ -150,6 +150,6 @@ if __name__ == '__main__':
 
     with make_temp_directory() as temp_dir:
         global tmpDir
-        tmpDir = temp_dir
+        tmpDir = temp_dir + "/"
         process_tf('ZNF143')
 
