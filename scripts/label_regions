@@ -283,9 +283,9 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
     os.system("shuf " + tmp_expanded_regions + " | pigz > " + labels_multitask)
 
     # clean up temp files generated
-    os.system("rm -f " + tmp_regions + ";" +
-              "rm -f " + tmp_core_regions + ";" +
-              "rm -f " + tmp_expanded_regions + ";")
+    #os.system("rm -f " + tmp_regions + ";" +
+    #          "rm -f " + tmp_core_regions + ";" +
+    #          "rm -f " + tmp_expanded_regions + ";")
 
     logging.info("LABEL_REGIONS ALL DONE *****")
 
