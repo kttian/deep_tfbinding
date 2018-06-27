@@ -88,7 +88,7 @@ def process_tf(tf):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + background_str
+          " --genome hg19 --prefix label " + background_str + " --stride 20"
     logging.debug(cmd)
     os.system(cmd)
 
