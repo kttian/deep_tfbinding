@@ -46,10 +46,12 @@ def fasta_iter(fasta_name):
 
 sequences = []
 fasta = fasta_iter(input_file)
+i = 0
 for header, seq in fasta:   
-    sequences.append(seq)
+    if i % 10 == 0
+        sequences.append(seq)
+    i = i+1
 print(len(sequences))
-print(sequences[0])
 
 import numpy as np
 
