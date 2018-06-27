@@ -4,8 +4,13 @@ import os
 from os.path import basename
 import argparse
 
-tmpDir    = "./tmp/"
-genomeDir = "../genome/"
+ROOT_DIR   = os.getenv('TFNET_ROOT', "../../") 
+scriptDir  = ROOT_DIR + "/scripts/"
+dataDir    = ROOT_DIR + "/ENCODE_data/"
+genomeDir  = ROOT_DIR + "/genome/"
+resultsDir = "./"
+tmpDir     = resultsDir + "tmp/"
+logDir     = resultsDir + "log/"
 
 
 def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):

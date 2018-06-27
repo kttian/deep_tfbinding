@@ -1,15 +1,38 @@
+#!/usr/bin/env python
+
 import os
 
-resultsDir = "../results/"
-dataDir    = "../ENCODE_data/"
-genomeDir  = "../genome/"
-tmpDir     = "./tmp/"
+
+"""
+TFNET_ROOT is set to the root of TFNET dir
+ +-- scripts       such as label_region, prepare_data.py, run_deeplift.py, run_modisco.py, run_pipeline.py etc
+ +-- genome        hg19.fa hg19.chrom.sizes
+ +-- ENCODE_data   intervals
+ +-- results       results of the pipeline
+      +-- ZNF143
+      +-- CTCF
+      +-- SIX5
+"""
+ROOT_DIR   = os.getenv('TFNET_ROOT', "../../") 
+scriptDir  = ROOT_DIR + "/scripts/"
+dataDir    = ROOT_DIR + "/ENCODE_data/"
+genomeDir  = ROOT_DIR + "/genome/"
+resultsDir = "./"
+tmpDir     = resultsDir + "tmp/"
+logDir     = resultsDir + "log/"
 
 positives = []
 ambiguous = []
 
-os.chdir(resultsDir)
-os.system("mkdir -p " + tmpDir)
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+
+# must run from resultsDir
+os.system("mkdir -p " + resultsDir + tmpDir)
 
 # loop through the TFs
 for tf in ['ZNF143']:
@@ -63,9 +86,9 @@ for tf in ['ZNF143']:
     #       " --genome hg19 --prefix tflabel" #       + " --background background "
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
-    cmd = "../scripts/label_regions " + positives_str + ambiguous_str + \
+    cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
           " --genome hg19 --prefix label" 
-    print(cmd)
+    logging.debug(cmd)
     os.system(cmd)
 
     labels_multitask    = labels_multitask_gz[:-3]
@@ -91,7 +114,7 @@ for tf in ['ZNF143']:
     for tmp_file in tmp_file_list:
         os.system("rm -f " + tmp_file)
 
-    print("split and make hdf5")
+    logging.info("split and make hdf5")
     os.system("mkdir -p splits")
 
     #make the splits
@@ -100,11 +123,14 @@ for tf in ['ZNF143']:
 
     os.system("cat labels.txt | grep " + valid_chrom + ": | gzip -c > splits/valid.txt.gz")
     os.system("cat labels.txt | grep " + test_chrom  + ": | gzip -c > splits/test.txt.gz")
-    os.system("cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrome + "\" | gzip -c > splits/train.txt.gz")
+    cmd = "cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrom + ":\|^id" + "\" | gzip -c > splits/train.txt.gz"
+    os.system(cmd)
 
     os.system("gzip -f labels.txt")
     os.system("gzip -f inputs.fa")
 
     os.system("make_hdf5 --yaml_configs make_hdf5_yaml/* --output_dir .")
+
+    logging.info("prepare_data done")
 
 
