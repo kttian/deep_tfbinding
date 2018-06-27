@@ -209,7 +209,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
         # sort and merge the positives and ambiguous
         tmp_regions = tmpDir + "_tmp_regions.tsv"
         cmd = "cat " + " ".join(p_unzips) + " " + " ".join(a_unzips) + \
-            " | cut -f 1-3 | bedtools slop -i stdin -b " + str(bin_size) + \
+            " | cut -f 1-3 | bedtools slop -i stdin -b " + str((bin_size/2)) + \
             " -g " + chrom_sizes_fn + " | bedtools sort | bedtools merge > " + tmp_regions
         os.system(cmd)
 
