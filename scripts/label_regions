@@ -349,7 +349,7 @@ def make_temp_directory():
     try:
         yield temp_dir
     finally:
-        shutil.rmtree(temp_dir)
+        #shutil.rmtree(temp_dir)
 
 
 if __name__ == '__main__':
