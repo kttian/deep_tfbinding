@@ -18,8 +18,8 @@ scriptDir  = ROOT_DIR + "/scripts/"
 dataDir    = ROOT_DIR + "/ENCODE_data/"
 genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
-tmpDir     = resultsDir + "tmp/"
 logDir     = resultsDir + "log/"
+tmpDir     = "./tmp/"
 
 positives = []
 ambiguous = []
@@ -32,11 +32,11 @@ logging.basicConfig(
 
 
 # must run from resultsDir
-os.system("mkdir -p " + resultsDir + tmpDir)
 
 # loop through the TFs
-for tf in ['ZNF143']:
+#for tf in ['ZNF143']:
 
+def process_tf(tf):
     header = "id"
     tmp_file_list = []
     tmp_empty_file = tmpDir + "_tmp_empty_file"
@@ -78,6 +78,7 @@ for tf in ['ZNF143']:
     else:
         ambiguous_str = ""
     
+    background_str = " --background " + genomeDir + "hg19.tsv "
 
     # call tfdragonn labelregions
     #
@@ -87,7 +88,7 @@ for tf in ['ZNF143']:
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label" 
+          " --genome hg19 --prefix label " + background_str
     logging.debug(cmd)
     os.system(cmd)
 
@@ -133,4 +134,22 @@ for tf in ['ZNF143']:
 
     logging.info("prepare_data done")
 
+# guarantee to clean up tmp dir
+import contextlib
+import tempfile
+import shutil
+@contextlib.contextmanager
+def make_temp_directory():
+    temp_dir = tempfile.mkdtemp(dir = ".", prefix = "_tmp_")
+    try:
+        yield temp_dir
+    finally:
+        shutil.rmtree(temp_dir)
+
+if __name__ == '__main__':
+
+    with make_temp_directory() as temp_dir:
+        global tmpDir
+        tmpDir = temp_dir
+        process_tf('ZNF143')
 

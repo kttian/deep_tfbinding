@@ -9,15 +9,36 @@ scriptDir  = ROOT_DIR + "/scripts/"
 dataDir    = ROOT_DIR + "/ENCODE_data/"
 genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
-tmpDir     = resultsDir + "tmp/"
 logDir     = resultsDir + "log/"
+tmpDir     = None
 
+min_from_edge = 5000
 
-def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+chrom_sizes = {}
+def load_chrom_sizes(chrom_sizes_fn):
+    global chrom_sizes
+    chrom_sizes = {}
+    with open(chrom_sizes_fn) as genome_fh:
+        for line in genome_fh:
+            chrom, size = line.split()
+            chrom_sizes[chrom.strip()] = int(size)
+    
+
+def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, tasks = 0):
     """
         takes in regions and expands region lengths to be a multiple of stride (50)
         outputs a list of regions, result of sliding window of length bin_size (200)
     """
+    label_str = ""
+    for i in range(tasks) :
+        label_str = label_str + "\t0"
+
     with open(in_name,'r') as tsvin, open(out_name, 'w') as tsvout:
         # for row in tsvin:
         for cnt, line in enumerate(tsvin):
@@ -27,19 +48,25 @@ def unify_core_lengths(in_name, out_name, bin_size = 200, stride = 50):
             end   = int(row[2])
 
             peak_length = end - start
-            total_length = stride * int( (peak_length + stride - 1 )/stride )
-            # total_length = stride * ceiling = smallest multiple of stride greater than peak_length
+            if expand :
+                # total_length = stride * ceiling = smallest multiple of stride greater than peak_length
+                total_length = stride * int( (peak_length + stride - 1 )/stride )
+            else : 
+                total_length = peak_length # no expand
+                
 
             extend_left = int((total_length - peak_length)/2)
             extend_left = 0
             extend_right = total_length - peak_length - extend_left
 
-            left = start - extend_left
+            left  = start - extend_left
             right = end + extend_right
 
             # write out the new "unified" intervals
-            for le in range(left, right - bin_size + 1, stride):
-                tsvout.write(chrom + "\t" + str(le) + "\t" + str(le + bin_size) + "\n")
+            right_max = chrom_sizes[chrom] - min_from_edge
+            for le in range(max(left, min_from_edge), 
+                            min(right, right_max) - bin_size + 1, stride):
+                tsvout.write(chrom + "\t" + str(le) + "\t" + str(le + bin_size) + label_str + "\n")
 
 
 import contextlib
@@ -103,7 +130,7 @@ def label_regions_fast(region, positive, ambiguous, labels):
 # can be simplified if we use intersect -c
 
 
-def label_regions_multitask(labels_multitask, chrom_sizes, positives, 
+def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives, 
                             ambiguous = None, regions = None,
                             bin_size=200, flank_size=400, stride=50,
                             n_jobs=1, genome='hg19',
@@ -114,7 +141,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     Parameters
     ----------
     labels_multitask : output labels file.
-    chrom_sizes      : file that contains the sizes of reference genomes.
+    chrom_sizes_fn   : file that contains the sizes of reference genomes.
     positives        : the true positives, a list of paths, one for each experiment,
                        mandatory.
     ambiguous        : the ambiguous set, a list of paths, one for each experiment,
@@ -124,7 +151,9 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
                        total regions being labeled. If not specified, 
                        use the union of positives
     """
-    os.system("mkdir -p " + tmpDir)
+    #os.system("mkdir -p " + tmpDir)
+
+    load_chrom_sizes(chrom_sizes_fn)
 
     ############################################
     ### positives
@@ -166,17 +195,41 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     # if no background regions were specified, use the union of positives as regions
     if regions == None:
         # sort and merge the positives 
-        tmp_regions = tmpDir + "_tmp_peaks_merge.tsv"
+        tmp_regions = tmpDir + "_tmp_regions.tsv"
         cmd = "cat " + " ".join(p_unzips) + \
             " | cut -f 1-3 | bedtools sort | bedtools merge > " + tmp_regions
         os.system(cmd)
-        regions = tmp_regions
+        tmp_comp_window_regions = None
+    else:
+        # sort and merge the positives and ambiguous
+        tmp_regions = tmpDir + "_tmp_regions.tsv"
+        cmd = "cat " + " ".join(p_unzips) + " " + " ".join(a_unzips) + \
+            " | cut -f 1-3 | bedtools slop -i stdin -b " + str(bin_size) + \
+            " -g " + chrom_sizes_fn + " | bedtools sort | bedtools merge > " + tmp_regions
+        os.system(cmd)
 
-    print("LABEL_REGIONS sort merge done")
+        tmp_comp_regions = tmpDir + "_tmp_comp_regions.tsv"
 
-    # unify the core region lengths to multiple of strides
+        #cmd = "bedtools complement -i " + tmp_regions + " -g " + \
+        #    chrom_sizes_fn + " > " + tmp_comp_regions)
+
+        cmd = "bedtools subtract -a " + regions + " -b " + \
+              tmp_regions + " > " + tmp_comp_regions
+        os.system(cmd)
+
+        tmp_comp_window_regions = tmpDir + "_tmp_comp_window_regions.tsv"
+        expanded_window_size = bin_size + 2 * flank_size
+        make_windows(tmp_comp_regions, tmp_comp_window_regions, 
+                     bin_size=expanded_window_size, stride=expanded_window_size,
+                     expand=False, tasks=len(positives))     
+
+    regions = tmp_regions
+
+    logging.info("LABEL_REGIONS sort merge done")
+
+    # unify the core region lengths to multiple of strides and make windows
     tmp_core_regions = tmpDir + "_tmp_core_regions.tsv"
-    unify_core_lengths(regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
+    make_windows(regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
 
     # generate intersects with positives
     pos_intersects = []
@@ -201,9 +254,9 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
     # generate expanded regions
     tmp_expanded_regions = tmpDir + "_tmp_expanded_regions.tsv"
     os.system("bedtools slop -i " + tmp_core_regions + " -g " + \
-        chrom_sizes + " -b " + str(flank_size) + " > " + tmp_expanded_regions)
+        chrom_sizes_fn + " -b " + str(flank_size) + " > " + tmp_expanded_regions)
 
-    print("LABEL_REGIONS intersect done")
+    logging.info("LABEL_REGIONS intersect done")
 
     # label regions for each task and paste to the regions
     for i in range(len(positives)):
@@ -217,7 +270,10 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
         os.system("paste " + tmp_expanded_regions + " " + tmp_labels + " > " + tmp_paste)
         os.system("mv -f " + tmp_paste + " " + tmp_expanded_regions)
 
-    print("LABEL_REGIONS labels done")
+    if tmp_comp_window_regions != None:
+        os.system("cat " + tmp_comp_window_regions + " >> " + tmp_expanded_regions)
+
+    logging.info("LABEL_REGIONS labels done")
     # shuffle the lines
     os.system("shuf " + tmp_expanded_regions + " | gzip > " + labels_multitask)
 
@@ -226,7 +282,7 @@ def label_regions_multitask(labels_multitask, chrom_sizes, positives,
               "rm -f " + tmp_core_regions + ";" +
               "rm -f " + tmp_expanded_regions + ";")
 
-    print("LABEL_REGIONS ALL DONE *****")
+    logging.info("LABEL_REGIONS ALL DONE *****")
 
 
 # argument parsing borrowed from tf-dragonn labelregions so that we are compatable
@@ -277,6 +333,23 @@ def run_label_regions_from_args():
     else:
         raise RuntimeError("Must pass in positives, background, and task names!")
 
+# guarantee to clean up tmp dir
+import contextlib
+import tempfile
+import shutil
+
+@contextlib.contextmanager
+def make_temp_directory():
+    temp_dir = tempfile.mkdtemp(dir = ".", prefix = "_tmp_")
+    try:
+        yield temp_dir
+    finally:
+        shutil.rmtree(temp_dir)
+
+
 if __name__ == '__main__':
-    run_label_regions_from_args()
+    with make_temp_directory() as temp_dir:
+        global tmpDir
+        tmpDir = temp_dir + "/"
+        run_label_regions_from_args()
 
