@@ -9,8 +9,6 @@ import matplotlib as mpl
 mpl.use('Agg')
 
 import os
-resultDir = "../results/"
-os.chdir(resultDir)
 
 try:
     reload  # Python 2.7
@@ -71,14 +69,14 @@ num_tasks = 5
 
 # onehot_data is the one hot encoding of the input sequences used
 onehot_data = np.array([one_hot_encode_along_channel_axis(x.rstrip()) 
-                        for x in open("../results/sequences.txt")])
+                        for x in open("./sequences.txt")])
                         # generated during preprocessing
 
 
 # locations of deeplift scores
 scores_loc = []
 for i in range(num_tasks):
-    loc_i = "../results/scores/rescale_conv_revealcancel_fc_multiref_10_task_" + str(i) + ".npy"
+    loc_i = "./rescale_conv_revealcancel_fc_multiref_10_task_" + str(i) + ".npy"
     scores_loc.append(loc_i)
 
 # scores & their one-hot encodings
