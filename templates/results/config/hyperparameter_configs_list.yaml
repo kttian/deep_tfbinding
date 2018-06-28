@@ -88,11 +88,10 @@
                 "class": "keras.optimizers.Adam",
                 "kwargs": {"lr": 0.001}
             },
-            #"loss": "binary_crossentropy" 
             "loss": {
                 "modules_to_load": ["keras_genomics"],
-                "func": "keras_genomics.losses.ambig_binary_crossentropy"
-            }
+                "func": "keras_genomics.losses.ambig_binary_crossentropy"        
+            } 
         } 
     },
     "model_trainer":{
@@ -103,7 +102,7 @@
             "stopping_criterion_config": {
                 "class": "EarlyStopping" ,
                 "kwargs": {
-                   "max_epochs": 300, 
+                   "max_epochs": 1000, 
                    "epochs_to_wait": 20
                 } 
             },
