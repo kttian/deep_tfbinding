@@ -10,7 +10,6 @@ dataDir    = ROOT_DIR + "/ENCODE_data/"
 genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
 logDir     = resultsDir + "log/"
-tmpDir     = None
 
 min_from_edge = 5000
 

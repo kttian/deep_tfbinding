@@ -5,6 +5,17 @@ import datetime
 start = datetime.datetime.now()
 print ("start time " + str(start))
 
+import sys
+if len(sys.argv) != 4:
+    print("Syntax: ", sys.argv[0] , " <method prefix> <sequence file> <number of tasks>")
+    quit()
+
+method_prefix = sys.argv[1]                 # "./rescale_conv_revealcancel_fc_multiref_10_task_"
+input_file    = sys.argv[2]                 # subset.txt, sequences without the fasta header line ">"
+num_tasks     = int(sys.argv[3])            # 
+
+print("method file prefix is ", method_prefix, ", input seq file is ", input_file, ", number of tasks is ", num_tasks)
+
 import matplotlib as mpl
 mpl.use('Agg')
 
@@ -64,19 +75,16 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
 # 
 # You need a numpy array of importance scores and hypothetical importance scores for every task.
 
-
-num_tasks = 5
-
 # onehot_data is the one hot encoding of the input sequences used
 onehot_data = np.array([one_hot_encode_along_channel_axis(x.rstrip()) 
-                        for x in open("./sequences.txt")])
+                        for x in open(input_file)])
                         # generated during preprocessing
 
 
 # locations of deeplift scores
 scores_loc = []
 for i in range(num_tasks):
-    loc_i = "./rescale_conv_revealcancel_fc_multiref_10_task_" + str(i) + ".npy"
+    loc_i = method_prefix + str(i) + ".npy"
     scores_loc.append(loc_i)
 
 # scores & their one-hot encodings

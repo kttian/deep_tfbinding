@@ -16,19 +16,20 @@ from keras.models import model_from_json
 #input_file = "test.fa"
 
 import sys
-if len(sys.argv) != 3:
-    print("Syntax: ", sys.argv[0] , " <model name> <sequence file>")
+if len(sys.argv) != 4:
+    print("Syntax: ", sys.argv[0] , " <model name> <sequence file> <number of tasks>")
     quit()
 
 keras_model_weights = sys.argv[1] + "Weights.h5"
 keras_model_json    = sys.argv[1] + "Json.json"
-input_file          = sys.argv[2]
+input_file          = sys.argv[2]                 # subset.txt, sequences without fasta header line ">"
+num_tasks           = int(sys.argv[3])
 
 print("loading models from ", keras_model_json, " ", keras_model_weights)
 keras_model = model_from_json(open(keras_model_json).read())
 keras_model.load_weights(keras_model_weights)
 
-print("input sequence file is ", input_file)
+print("input sequence file is ", input_file, ", number of tasks is ", num_tasks)
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -48,8 +49,8 @@ sequences = []
 fasta = fasta_iter(input_file)
 
 for header, seq in fasta:   
-    if header[3:5] == "1:":
-        sequences.append(seq)
+    #if header[3:5] == "1:":
+    sequences.append(seq)
 print(len(sequences))
 
 import numpy as np
@@ -197,7 +198,7 @@ rescale_conv_revealcancel_fc_many_refs_func = get_shuffle_seq_ref_function(
 
 num_refs_per_seq=10 #number of references to generate per sequence
 method_to_task_to_scores['rescale_conv_revealcancel_fc_multiref_'+str(num_refs_per_seq)] = OrderedDict()
-for task_idx in [0,1,2,3,4]:
+for task_idx in range(num_tasks):
 #for task_idx in [0]:
     method_to_task_to_scores['rescale_conv_revealcancel_fc_multiref_'+str(num_refs_per_seq)][task_idx] =        np.squeeze(np.sum(rescale_conv_revealcancel_fc_many_refs_func(
             task_idx=task_idx,
