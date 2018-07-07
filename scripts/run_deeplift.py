@@ -121,7 +121,7 @@ logging.debug("len of input sequences = %d", len(fasta_sequences))
 
 onehot_data = np.array([one_hot_encode_along_channel_axis(seq)
                         for seq in fasta_sequences])
-logging.debug("onehot shape = ", + str(onehot_data.shape))
+logging.debug("onehot shape = " + str(onehot_data.shape))
 
 log_mem_usage(0, "place 2")
 
