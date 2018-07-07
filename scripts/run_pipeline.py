@@ -32,17 +32,21 @@ if start <= 0:
     os.system("python prepare_data.py --no-bg > logs/pre_prepare.log 2>&1")
     os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
 
+    os.system("mkdir -p pretrain")
     os.chdir("model_files")
     os.system("ln -s record_1_*Json.json  record_1_Json.json")
     os.system("ln -s record_1_*Weights.h5 record_1_Weights.h5")
     os.chdir("..")
-    os.system("mv model_files model_files_pretrain")
+    os.system("mv model_files pretrain")
 
     os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset_nobg.tsv")
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset_nobg.tsv -fo subset_nobg.fa")
-    os.system("mv splits splits_pretrain")
+    os.system("mv splits pretrain")
 
-    os.system("mv runs_perf-metric-auROC.db model_files_pretrain/")
+    os.system("mv runs_perf-metric-auROC.db pretrain/")
+    os.system("mv label* pretrain/")
+    os.system("mv _tmp_* pretrain/")
+
     os.system("cp -f config/hyperparameter_configs_list.yaml.pretrain config/hyperparameter_configs_list.yaml")
     print("step 0 pre_train done")
 
