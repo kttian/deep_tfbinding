@@ -20,6 +20,8 @@ logging.basicConfig(
         datefmt='%Y-%m-%d %H:%M:%S')
 
 from sys import getsizeof
+from pympler.asizeof import asizeof
+
 def log_mem_usage(step=100, msg=""):
     GB = 2**30
 
@@ -33,13 +35,14 @@ def log_mem_usage(step=100, msg=""):
 
     if step >= 1:
         global fasta_sequences
-        global onehot_data
         global deeplift_model
         global keras_model
-        logging.debug("size of fasta_sequences = %f G", getsizeof(fasta_sequences)/GB)
-        logging.debug("size of onehot_data     = %f G", getsizeof(onehot_data)/GB)
-        logging.debug("size of deeplift_model  = %f G", getsizeof(deeplift_model)/GB)
-        logging.debug("size of keras_model     = %f G", getsizeof(keras_model)/GB)
+        logging.debug("size of fasta_sequences = %f (%f) G",
+                      asizeof(fasta_sequences)/GB, getsizeof(fasta_sequences)/GB)
+        logging.debug("size of deeplift_model  = %f (%f) G",
+                      asizeof(deeplift_model)/GB, getsizeof(deeplift_model)/GB)
+        logging.debug("size of keras_model     = %f (%f) G",
+                      asizeof(keras_model)/GB, getsizeof(keras_model)/GB)
     
     if step >= 2:
         global hyp_score_total
@@ -49,7 +52,7 @@ def log_mem_usage(step=100, msg=""):
         logging.debug("size of hyp_scores      = %f G", getsizeof(hyp_scores)/GB)
         logging.debug("size of contrib_scores  = %f G", getsizeof(contrib_scores)/GB)
 
-log_mem_usage(0, "place 1")
+log_mem_usage(0, "memory check location 1")
 
 #this is set up for 1d convolutions where examples
 #have dimensions (len, num_channels)
@@ -119,11 +122,7 @@ for header, seq in fasta:
     fasta_sequences.append(seq)
 logging.debug("len of input sequences = %d", len(fasta_sequences))
 
-onehot_data = np.array([one_hot_encode_along_channel_axis(seq)
-                        for seq in fasta_sequences])
-logging.debug("onehot shape = " + str(onehot_data.shape))
-
-log_mem_usage(0, "place 2")
+log_mem_usage(0, "memory check location 2")
 
 # ### Load the keras model
 
@@ -158,10 +157,11 @@ import deeplift.conversion.kerasapi_conversion as kc
 from collections import OrderedDict
 
 deeplift_model = kc.convert_model_from_saved_files(
-        h5_file=keras_model_weights,
-        json_file=keras_model_json)
+                     h5_file=keras_model_weights,
+                     json_file=keras_model_json)
 
 
+'''
 # ### Sanity checks
 # To ensure that the conversion happend correctly, ensure that the models give
 # identical predictions
@@ -189,7 +189,7 @@ logging.debug("maximum difference in predictions: %e",
 
 assert np.max(np.array(converted_model_predictions)-np.array(original_model_predictions)) < 10**-5
 predictions = converted_model_predictions
-
+'''
 
 # ## Compute importance scores
 # 
@@ -260,7 +260,7 @@ hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
 num_refs_per_seq = 10
 all_tasks = range(num_tasks)
 
-log_mem_usage(1, "place 3")
+log_mem_usage(1, "memory check location 3")
 
 for task_idx in all_tasks:
 
@@ -270,10 +270,12 @@ for task_idx in all_tasks:
     hyp_score_total = np.zeros((0,1000,4))
     num_block = int((len(fasta_sequences) + block_size - 1) / block_size )
 
+
     for block_id in range(num_block):
         st = block_id * block_size
         seq_block = fasta_sequences[st:st+block_size]
-        onehot_block = onehot_data[st:st+block_size]
+        onehot_block = np.array([one_hot_encode_along_channel_axis(seq)
+                                for seq in seq_block])
 
         hyp_scores = hypothetical_contribs_many_refs_func(
                 task_idx=task_idx,
@@ -310,12 +312,13 @@ for task_idx in all_tasks:
         else:
             contrib_scores = hyp_scores * onehot_block
 
-        logging.debug("hyp_total shape=" + str(hyp_score_total.shape))
+        logging.debug("task %d block %d hyp_total shape= %s",
+                      task_idx, block_id, str(hyp_score_total.shape))
 
         # now concatentate the scores
         hyp_score_total = np.concatenate((hyp_score_total, hyp_scores))
 
-        log_mem_usage(msg="place 4")
+        log_mem_usage(msg="memory check location 4")
 
 
     #task_to_contrib_scores[task_idx] = contrib_scores
