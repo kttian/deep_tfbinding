@@ -62,7 +62,7 @@ input_file          = sys.argv[2]    # subset.txt, sequences without fasta heade
 num_tasks           = int(sys.argv[3])
 
 logging.info("loading models from " + keras_model_json + " " + keras_model_weights)
-logging.info("input sequence file is " + input_file, ", number of tasks is ", num_tasks)
+logging.info("input sequence file is " + input_file + ", number of tasks is " + str(num_tasks))
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
