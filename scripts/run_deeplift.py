@@ -11,6 +11,12 @@ print ("start time " + str(start))
 import gzip
 import numpy as np
 
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
 #this is set up for 1d convolutions where examples
 #have dimensions (len, num_channels)
 #the channel axis is the axis for one-hot encoding.
@@ -55,8 +61,8 @@ keras_model_json    = sys.argv[1] + "Json.json"
 input_file          = sys.argv[2]    # subset.txt, sequences without fasta header line ">"
 num_tasks           = int(sys.argv[3])
 
-print("loading models from ", keras_model_json, " ", keras_model_weights)
-print("input sequence file is ", input_file, ", number of tasks is ", num_tasks)
+logging.info("loading models from " + keras_model_json + " " + keras_model_weights)
+logging.info("input sequence file is " + input_file, ", number of tasks is ", num_tasks)
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -77,11 +83,11 @@ fasta = fasta_iter(input_file)
 
 for header, seq in fasta:   
     fasta_sequences.append(seq)
-print("len of input sequences = ", len(fasta_sequences))
+logging.debug("len of input sequences = %d", len(fasta_sequences))
 
 onehot_data = np.array([one_hot_encode_along_channel_axis(seq)
                         for seq in fasta_sequences])
-print(onehot_data.shape)
+logging.debug(onehot_data.shape)
 
 # ### Load the keras model
 
@@ -142,7 +148,7 @@ converted_model_predictions = deeplift.util.run_function_in_batches(
                                   func=deeplift_prediction_func,
                                   batch_size=200,
                                   progress_update=None)
-print("maximum difference in predictions:",
+logging.debug("maximum difference in predictions: %e",
       np.max(np.array(converted_model_predictions)-np.array(original_model_predictions)))
 
 assert np.max(np.array(converted_model_predictions)-np.array(original_model_predictions)) < 10**-5
@@ -215,48 +221,88 @@ hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
 
 # In[10]:
 
+from sys import getsizeof
+import psutil
+def log_obj_sizes(step = 100):
+    GB = 1000000000
+    global fasta_sequences
+    global onehot_data
+    global deeplift_model
+    global keras_model
+
+    logging.debug(psutil.virtual_memory())
+    logging.debug("size of fasta_sequences = %f G", getsizeof(fasta_sequences)/GB)
+    logging.debug("size of onehot_data     = %f G", getsizeof(onehot_data)/GB)
+    logging.debug("size of deeplift_model  = %f G", getsizeof(deeplift_model)/GB)
+    logging.debug("size of keras_model     = %f G", getsizeof(keras_model)/GB)
+    
+    if step >= 1:
+        global hyp_score_total
+        global hyp_scores
+        global contrib_scores
+        logging.debug("size of hyp_score_total = %f G", getsizeof(hyp_score_total)/GB)
+        logging.debug("size of hyp_scores      = %f G", getsizeof(hyp_scores)/GB)
+        logging.debug("size of contrib_scores  = %f G", getsizeof(contrib_scores)/GB)
+
 num_refs_per_seq = 10
-task_to_contrib_scores = {}
-task_to_hyp_contrib_scores = {}
 all_tasks = range(num_tasks)
+
+log_obj_sizes(0)
 
 for task_idx in all_tasks:
 
-    print("On task",task_idx)
-    hyp_scores = hypothetical_contribs_many_refs_func(
-            task_idx=task_idx,
-            input_data_sequences=fasta_sequences,
-            num_refs_per_seq=num_refs_per_seq,
-            batch_size=200,
-            progress_update=10000,
-        )
+    logging.debug("On task %d",task_idx)
 
-    if task_idx == 0:
-        contrib_scores = np.sum(contribs_many_refs_func(
+    block_size = 10000
+    hyp_score_total = np.zeros((0,1000,4))
+    num_block = int((len(fasta_sequences) + block_size - 1) / block_size )
+
+    for block_id in range(num_block):
+        st = block_id * block_size
+        seq_block = fasta_sequences[st:st+block_size]
+        onehot_block = onehot_data[st:st+block_size]
+
+        hyp_scores = hypothetical_contribs_many_refs_func(
                 task_idx=task_idx,
-                input_data_sequences=fasta_sequences,
+                input_data_sequences=seq_block,
                 num_refs_per_seq=num_refs_per_seq,
                 batch_size=200,
                 progress_update=10000,
-            ),axis=2)[:,:,None] * onehot_data
+            )
 
-        # ### Sanity check the hypothetical contributions
-        # 
-        # We make sure that the "hypothetical" contributions of the bases that are
-        # actually present in the sequence are the same as the actual
-        # contributions of those bases. This should be true by design, so
-        # technically you don't have to compute `task_to_contrib_scores[task_idx]`
-        # separately in the step above; you can just obtain it using
-        # `task_to_contrib_scores[task_idx] =
-        # task_to_hyp_contrib_scores[task_idx]*onehot_data`.
+        if task_idx == -1: # no need to do this
+            contrib_scores = np.sum(contribs_many_refs_func(
+                    task_idx=task_idx,
+                    input_data_sequences=seq_block,
+                    num_refs_per_seq=num_refs_per_seq,
+                    batch_size=200,
+                    progress_update=10000,
+                ),axis=2)[:,:,None] * onehot_block
 
-        max_diff = np.max(np.abs(hyp_scores * onehot_data - \
-                                 contrib_scores))
-        print("task",task_idx,"max diff:",max_diff)
-        assert max_diff < 1e-6 #assert the difference is within numerical precision
+            # ### Sanity check the hypothetical contributions
+            # 
+            # We make sure that the "hypothetical" contributions of the bases that are
+            # actually present in the sequence are the same as the actual
+            # contributions of those bases. This should be true by design, so
+            # technically you don't have to compute `task_to_contrib_scores[task_idx]`
+            # separately in the step above; you can just obtain it using
+            # `task_to_contrib_scores[task_idx] =
+            # task_to_hyp_contrib_scores[task_idx]*onehot_data`.
 
-    else:
-        contrib_scores = hyp_scores * onehot_data
+            max_diff = np.max(np.abs(hyp_scores * onehot_block - \
+                                     contrib_scores))
+            logging.debug("task %d max diff: %e",task_idx, max_diff)
+            assert max_diff < 1e-6 #assert the difference is within numerical precision
+
+        else:
+            contrib_scores = hyp_scores * onehot_block
+
+        logging.debug("hyp_total shape=" + str(hyp_score_total.shape))
+
+        # now concatentate the scores
+        hyp_score_total = np.concatenate((hyp_score_total, hyp_scores))
+
+        log_obj_sizes()
 
 
     #task_to_contrib_scores[task_idx] = contrib_scores
@@ -278,7 +324,7 @@ for task_idx in all_tasks:
 
     os.system("mkdir -p scores")
     filename = "scores/hyp_scores_task_" + str(task_idx) + ".npy"
-    print("saving hyp_scores to " + filename)
+    logging.info("saving hyp_scores to " + filename)
     np.save(filename, hyp_scores)
 
 # ### Visualize the contributions and hypothetical contributions on a few sequences
@@ -326,5 +372,5 @@ f.close()
 
 
 end = datetime.datetime.now()
-print ("start time " + str(start))
-print ("end time " + str(end))
+logging.debug ("start time " + str(start))
+logging.debug ("end time " + str(end))
