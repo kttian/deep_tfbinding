@@ -10,12 +10,46 @@ print ("start time " + str(start))
 
 import gzip
 import numpy as np
+import psutil
+import os
 
 import logging
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
+
+from sys import getsizeof
+def log_mem_usage(step=100, msg=""):
+    GB = 2**30
+
+    logging.debug(msg)
+    logging.debug(psutil.virtual_memory())
+    pid = os.getpid()
+    py = psutil.Process(pid)
+    rss = py.memory_info()[0]/GB  # rss use in GB
+    vms = py.memory_info()[1]/GB  # vms use in GB
+    logging.debug('memory use: vms=%f G, rss=%f G', vms, rss)
+
+    if step >= 1:
+        global fasta_sequences
+        global onehot_data
+        global deeplift_model
+        global keras_model
+        logging.debug("size of fasta_sequences = %f G", getsizeof(fasta_sequences)/GB)
+        logging.debug("size of onehot_data     = %f G", getsizeof(onehot_data)/GB)
+        logging.debug("size of deeplift_model  = %f G", getsizeof(deeplift_model)/GB)
+        logging.debug("size of keras_model     = %f G", getsizeof(keras_model)/GB)
+    
+    if step >= 2:
+        global hyp_score_total
+        global hyp_scores
+        global contrib_scores
+        logging.debug("size of hyp_score_total = %f G", getsizeof(hyp_score_total)/GB)
+        logging.debug("size of hyp_scores      = %f G", getsizeof(hyp_scores)/GB)
+        logging.debug("size of contrib_scores  = %f G", getsizeof(contrib_scores)/GB)
+
+log_mem_usage(0, "place 1")
 
 #this is set up for 1d convolutions where examples
 #have dimensions (len, num_channels)
@@ -87,7 +121,9 @@ logging.debug("len of input sequences = %d", len(fasta_sequences))
 
 onehot_data = np.array([one_hot_encode_along_channel_axis(seq)
                         for seq in fasta_sequences])
-logging.debug(onehot_data.shape)
+logging.debug("onehot shape = ", + str(onehot_data.shape))
+
+log_mem_usage(0, "place 2")
 
 # ### Load the keras model
 
@@ -221,33 +257,10 @@ hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
 
 # In[10]:
 
-from sys import getsizeof
-import psutil
-def log_obj_sizes(step = 100):
-    GB = 1000000000
-    global fasta_sequences
-    global onehot_data
-    global deeplift_model
-    global keras_model
-
-    logging.debug(psutil.virtual_memory())
-    logging.debug("size of fasta_sequences = %f G", getsizeof(fasta_sequences)/GB)
-    logging.debug("size of onehot_data     = %f G", getsizeof(onehot_data)/GB)
-    logging.debug("size of deeplift_model  = %f G", getsizeof(deeplift_model)/GB)
-    logging.debug("size of keras_model     = %f G", getsizeof(keras_model)/GB)
-    
-    if step >= 1:
-        global hyp_score_total
-        global hyp_scores
-        global contrib_scores
-        logging.debug("size of hyp_score_total = %f G", getsizeof(hyp_score_total)/GB)
-        logging.debug("size of hyp_scores      = %f G", getsizeof(hyp_scores)/GB)
-        logging.debug("size of contrib_scores  = %f G", getsizeof(contrib_scores)/GB)
-
 num_refs_per_seq = 10
 all_tasks = range(num_tasks)
 
-log_obj_sizes(0)
+log_mem_usage(1, "place 3")
 
 for task_idx in all_tasks:
 
@@ -302,7 +315,7 @@ for task_idx in all_tasks:
         # now concatentate the scores
         hyp_score_total = np.concatenate((hyp_score_total, hyp_scores))
 
-        log_obj_sizes()
+        log_mem_usage(msg="place 4")
 
 
     #task_to_contrib_scores[task_idx] = contrib_scores
