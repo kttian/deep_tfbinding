@@ -45,12 +45,12 @@ def log_mem_usage(step=100, msg=""):
                       asizeof(keras_model)/GB, getsizeof(keras_model)/GB)
     
     if step >= 2:
-        global hyp_score_total
+        global hyp_scores_all
         global hyp_scores
         global contrib_scores
-        logging.debug("size of hyp_score_total = %f G", getsizeof(hyp_score_total)/GB)
-        logging.debug("size of hyp_scores      = %f G", getsizeof(hyp_scores)/GB)
-        logging.debug("size of contrib_scores  = %f G", getsizeof(contrib_scores)/GB)
+        logging.debug("size of hyp_scores_all = %f G", getsizeof(hyp_scores_all)/GB)
+        logging.debug("size of hyp_scores     = %f G", getsizeof(hyp_scores)/GB)
+        logging.debug("size of contrib_scores = %f G", getsizeof(contrib_scores)/GB)
 
 log_mem_usage(0, "memory check location 1")
 
@@ -267,7 +267,7 @@ for task_idx in all_tasks:
     logging.debug("On task %d",task_idx)
 
     block_size = 10000
-    hyp_score_total = np.zeros((0,1000,4))
+    hyp_scores_all = np.zeros((0,1000,4))
     num_block = int((len(fasta_sequences) + block_size - 1) / block_size )
 
 
@@ -313,10 +313,10 @@ for task_idx in all_tasks:
             contrib_scores = hyp_scores * onehot_block
 
         logging.debug("task %d block %d hyp_total shape= %s",
-                      task_idx, block_id, str(hyp_score_total.shape))
+                      task_idx, block_id, str(hyp_scores_all.shape))
 
         # now concatentate the scores
-        hyp_score_total = np.concatenate((hyp_score_total, hyp_scores))
+        hyp_scores_all = np.concatenate((hyp_scores_all, hyp_scores))
 
         log_mem_usage(msg="memory check location 4")
 
@@ -340,8 +340,8 @@ for task_idx in all_tasks:
 
     os.system("mkdir -p scores")
     filename = "scores/hyp_scores_task_" + str(task_idx) + ".npy"
-    logging.info("saving hyp_scores to " + filename)
-    np.save(filename, hyp_scores)
+    logging.info("saving hyp_scores_all to " + filename + ", shape = " + str(hyp_scores_all.shape))
+    np.save(filename, hyp_scores_all)
 
 # ### Visualize the contributions and hypothetical contributions on a few sequences
 # 
