@@ -19,7 +19,7 @@ dataDir    = ROOT_DIR + "/ENCODE_data/"
 genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
 logDir     = resultsDir + "log/"
-tmpDir     = "./tmp/"
+#tmpDir     = "./tmp/"
 
 positives = []
 ambiguous = []
@@ -37,30 +37,56 @@ logging.basicConfig(
 #for tf in ['ZNF143']:
 
 def process_tf(tf):
+            #           -4   -3    -2          -1
+    #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
+    #neutrophil-CTCF-human-ENCSR785YRL-rep1.narrowPeak.gz
+    #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
+
+    import glob
+    ctcf_files = glob.glob(dataDir + "*-" + tf + "-human-*-optimal*")
+
+    count = 0
+    task_list = []
+    for path_name in ctcf_files:
+        fn = os.path.basename(path_name)
+        fn_list = fn.split('-')
+        exp  = fn_list[-2]
+        tf   = fn_list[-4]
+        cell = '-'.join(fn_list[:-4])
+        task_list.append([cell, tf, exp])
+        print(path_name)
+        count = count + 1
+
+    #print(task_list)
+    print(count)
+
     header = "id"
     tmp_file_list = []
     tmp_empty_file = tmpDir + "_tmp_empty_file"
     tmp_file_list.append(tmp_empty_file)
     os.system("touch " + tmp_empty_file)
-    for cell, exp, rep in [['GM12878','ENCSR000DZL',3], 
-                           ['GM12878','ENCSR936XTK',2], 
-                           ['H1-hESC','ENCSR000EBW',3],
-                           ['HeLa-S3','ENCSR000ECO',0],
-                           ['K562'   ,'ENCSR000EGP',3]]:
+    has_ambiguous = False
+    for cell, tf, exp in task_list:
         positive = dataDir + cell + "-" + tf + "-human-" + exp + "-optimal_idr.narrowPeak.gz"
+        if not os.path.isfile(positive):
+            print("ERR does not exist: ", positive)
         positives.append(positive)
         header += "\t" + exp
         merged = tmp_empty_file
         # merged = ""
-        if rep == 1: # bit0 == 1, has rep1
-            rep1 = cell + "-" + tf + "-human-" + exp + "-rep1.narrowPeak.gz"
+        rep1 = cell + "-" + tf + "-human-" + exp + "-rep1.narrowPeak.gz"
+        rep2 = cell + "-" + tf + "-human-" + exp + "-rep2.narrowPeak.gz"
+
+        has_rep1 = os.path.isfile(dataDir + rep1)
+        has_rep2 = os.path.isfile(dataDir + rep2)
+
+        if has_rep1:
             merged = dataDir+rep1
-        if rep == 2: # bit1 == 1, has rep2
-            rep2 = cell + "-" + tf + "-human-" + exp + "-rep2.narrowPeak.gz"
+            has_ambiguous = True
+        if has_rep2:
             merged = dataDir+rep2
-        if rep == 3: # bit1,bit2 == 1, has both rep1 and rep2
-            rep1 = cell + "-" + tf + "-human-" + exp + "-rep1.narrowPeak.gz"
-            rep2 = cell + "-" + tf + "-human-" + exp + "-rep2.narrowPeak.gz"
+            has_ambiguous = True
+        if has_rep1 and has_rep2:
             tmp_merged = tmpDir + "_tmp_" + cell + "-" + tf + "-human-" + exp + "-merged.narrowPeak.gz"
             tmp_file_list.append(tmp_merged)
             merged = tmp_merged
@@ -73,12 +99,13 @@ def process_tf(tf):
     else:
         positives_str = ""
 
-    if ambiguous != []:
+    if has_ambiguous:
         ambiguous_str = " --ambiguous " + ','.join(ambiguous)
     else:
         ambiguous_str = ""
     
     background_str = " --background " + genomeDir + "hg19.tsv "
+
 
     # call tfdragonn labelregions
     #
@@ -88,8 +115,9 @@ def process_tf(tf):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + background_str + " --stride 20"
+          " --genome hg19 --prefix label " + " --stride 20" + background_str
     logging.debug(cmd)
+
     os.system(cmd)
 
     labels_multitask    = labels_multitask_gz[:-3]
@@ -148,8 +176,10 @@ def make_temp_directory():
 
 if __name__ == '__main__':
 
+    tf = 'ZNF143'
     with make_temp_directory() as temp_dir:
         global tmpDir
         tmpDir = temp_dir + "/"
-        process_tf('ZNF143')
+
+        process_tf(tf)
 
