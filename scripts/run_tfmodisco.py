@@ -265,8 +265,8 @@ def do_test() :
 
     logging.debug("average score DONE")
 
-do_test()
-quit()
+#do_test()
+#quit()
 
 import sys
 if len(sys.argv) != 5:
