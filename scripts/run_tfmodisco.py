@@ -61,7 +61,7 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
 class AverageScores:
 
     def __init__(self, avg_hyp_scores_list, avg_scores_seq_list,
-                 chrom=None, avg_st=0, avg_en=0):
+                 chrom=None, avg_st=0, avg_en=0, core_size=400):
         ''' 
         constructor
         self.avg_hyp_scores_list : newly calculated average hyp scores list
@@ -82,6 +82,7 @@ class AverageScores:
         self.avg_scores = np.zeros((0, 4))
         self.avg_counts = np.zeros(0)
         self.max_seq_size = 0
+        self.core_size    = core_size
         logging.debug("AverageScores: %s", 
                       "append to seq_list" if self.avg_scores_seq_list != None else "-" )
 
@@ -180,10 +181,19 @@ class AverageScores:
 
     def process_one_interval(self, chrom, st, en, scores_hyp, seq):
         
+        seq_size = en - st
+        left     = int((seq_size - self.core_size) / 2)
+        right    = left + self.core_size
+
         if chrom != self.chrom or st > self.avg_en: # start a new interval
             self.close_interval()
 
-        self.append_interval(chrom, st, en, scores_hyp, seq)
+        #self.append_interval(chrom, st, en, scores_hyp, seq)
+        self.append_interval(chrom, st + left, st + right, scores_hyp[left:right], 
+                             seq[left:right])
+
+        #logging.debug("processed interval %s:%d-%d, reduce to %d-%d",
+        #              chrom, st, en, st+left, st+right)
 
 def average_scores(in_tsv, hyp_scores_all, avg_hyp_scores_list, seq_list, avg_scores_seq_list):
 
@@ -236,7 +246,8 @@ def do_test() :
     avg_scores_seq_list        = []
     logging.debug("gen_tests DONE")
 
-    avg = AverageScores(avg_hyp_scores_list, avg_scores_seq_list=avg_scores_seq_list)
+    avg = AverageScores(avg_hyp_scores_list, avg_scores_seq_list=avg_scores_seq_list,
+                        core_size=8)
     for i in range(len(tsv_list)):
         chrom, st, en = tsv_list[i]
         scores_hyp = hyp_scores_all[i]
@@ -254,8 +265,8 @@ def do_test() :
 
     logging.debug("average score DONE")
 
-#do_test()
-#quit()
+do_test()
+quit()
 
 import sys
 if len(sys.argv) != 5:
