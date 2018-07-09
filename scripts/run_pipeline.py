@@ -39,8 +39,8 @@ if start <= 0:
     os.chdir("..")
     os.system("mv model_files pretrain")
 
-    os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset_nobg.tsv")
-    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset_nobg.tsv -fo subset_nobg.fa")
+    os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > subset_nobg.tsv")
+    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed subset_nobg.tsv -fo subset_nobg.fa")
     os.system("mv splits pretrain")
 
     os.system("mv runs_perf-metric-auROC.db pretrain/")
@@ -66,9 +66,6 @@ if start <= 2:
 
 #3 deeplift
 if start <= 3:
-    # use 1 mod 10 as subset on which to run deeplift
-    # os.system("cat labels.txt | tail -n +2 | perl -lane 'if ($.%10==1) {print $F[0]}' | sed 's/:/\t/; s/-/\t/' > splits/subset.tsv")
-
     # use the test set as the subset for deeplift
     # os.system("gunzip -c splits/test.txt.gz | perl -lane 'if ($.%2==1) {print}' | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv") # select half of testset
     #os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv")
@@ -79,7 +76,7 @@ if start <= 3:
 
 #4 modisco
 if start <= 4:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.txt 3 > logs/modisco.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv 3 > logs/modisco.log 2>&1")
 
 """
 '''
