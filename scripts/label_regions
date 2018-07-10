@@ -30,10 +30,10 @@ def load_chrom_sizes(chrom_sizes_fn):
     
 
 def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, tasks = 0):
-    """
-        takes in regions and expands region lengths to be a multiple of stride (50)
-        outputs a list of regions, result of sliding window of length bin_size (200)
-    """
+    '''
+        takes in intervals and expands interval lengths to be a multiple of stride (50)
+        outputs a list of intervals, using sliding window of length bin_size (200)
+    '''
     label_str = ""
     for i in range(tasks) :
         label_str = label_str + "\t0"
@@ -80,7 +80,7 @@ def dummy_context_mgr():
 
 
 def label_regions_fast(region, positive, ambiguous, labels):
-    """
+    '''
         label regions for one task
         O(n) to go through intervals in region file and label them
         assuming regions, positives, ambiguous files are all sorted
@@ -91,7 +91,7 @@ def label_regions_fast(region, positive, ambiguous, labels):
         positive:   input file with list of positive intersecting intervals (subset of region)
         ambiguous:  input file with list of ambiguous intersecting intervals (subset of region)
         labels:     output file with one column of labels
-    """
+    '''
     
     # Open the file with read only permit
     with open(region,'r') as reg, open(positive, 'r') as pos, open (labels, 'w') as lab:
@@ -134,12 +134,107 @@ def label_regions_fast(region, positive, ambiguous, labels):
 # can be simplified if we use intersect -c
 
 
+def unzip_peaks(positives, ambiguous):
+    '''
+    # unzip all original positive  input interval files to tmpDir
+    # unzip all original ambiguous input interval files to tmpDir
+    '''
+
+    ### positives
+    pos_unzips = []
+    for p_orig in positives:
+        if p_orig[-3:] == ".gz":
+            # basename extracts the last part of the path, the filename
+            p_unzip = tmpDir + basename(p_orig[:-3]) # remove ".gz" from filename
+
+            # unzip and sort p_orig to p_unzip
+            os.system("pigz -d -c " + p_orig + " | bedtools sort > " + p_unzip) 
+        else:
+            p_unzip = tmpDir + basename(p_orig)
+            # copy and sort p_orig to p_unzip
+            os.system("cat "       + p_orig + " | bedtools sort > " + p_unzip) 
+        pos_unzips.append(p_unzip)
+
+    ### ambigous
+    amb_unzips = None
+    if ambiguous != None:
+        assert(len(positives) == len(ambiguous)) # ensure same number of tasks
+        
+        amb_unzips = []
+        for a_orig in ambiguous:
+            if a_orig == None:
+                a_unzip = ""
+            else:
+                if a_orig[-3:] == ".gz":
+                    a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
+                    os.system("pigz -d -c " + a_orig + " | bedtools sort > " + a_unzip)
+                else:
+                    a_unzip = tmpDir + basename(a_orig)
+                    os.system("cat "       + a_orig + " | bedtools sort > " + a_unzip)
+            amb_unzips.append(a_unzip)
+
+    return pos_unzips, amb_unzips
+
+
+def gen_intersects(pos_unzips, amb_unzips, tmp_regions):
+    # generate intersects with positives
+    pos_intersects = []
+    for p in pos_unzips:
+        p_intersect = tmpDir + "_tmp_pint_" + basename(p)
+        os.system("bedtools intersect -a " + tmp_regions + " -b " + p + \
+            " -sorted -wa -f 0.5 -F 0.5 -e -u > " + p_intersect) # add -c later
+        #os.system("bedtools intersect -a " + tmp_core_regions + " -b " + p + \
+        #    " -sorted -wa -f 0.5 -F 0.5 -e -c | cut -f 4 > " + p_intersect)
+        pos_intersects.append(p_intersect)
+
+    # generate intersects with ambiguous
+    amb_intersects = []
+    for a in amb_unzips:
+        a_intersect = tmpDir + "_tmp_aint_" + basename(a)
+        os.system("bedtools intersect -a " + tmp_regions + " -b " + a + \
+            " -sorted -wa -f 0.5 -F 0.5 -e -u > " + a_intersect) # add -c later
+        #os.system("bedtools intersect -a " + tmp_core_regions + " -b " + a + \
+        #    " -sorted -wa -f 0.5 -F 0.5 -e -c | cut -f 4 > " + a_intersect)
+        amb_intersects.append(a_intersect)
+
+    return pos_intersects, amb_intersects
+
+def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
+                                bin_size=200, flank_size=400):
+    if regions == None:
+        # if no background regions were specified, use the union of positives as regions
+        tmp_regions = tmp_core_regions
+    else:    # sort and merge the background regions
+        tmp_regions = tmpDir + "_tmp_regions.tsv"
+        cmd = "cat " + regions + " | cut -f 1-3 | bedtools sort | bedtools merge  > " + tmp_regions
+        os.system(cmd)
+
+        tmp_expanded_bkg_regions = tmpDir + "_tmp_expanded_bkg_regions.tsv"
+        expanded_window_size = bin_size + 2 * flank_size
+
+        # for background, make expanded sized windows directly (1000 instead of usual 200)
+        make_windows(tmp_regions, tmp_expanded_bkg_regions, 
+                     bin_size=expanded_window_size, stride=expanded_window_size)     
+
+        # generate shrunk regions for labeling (using negative flank_size)
+        tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
+        os.system("bedtools slop -i " + tmp_expanded_bkg_regions + " -g " + \
+            chrom_sizes_fn + " -b " + str(-flank_size) + " > " + tmp_bkg_regions)
+
+        os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
+
+        cmd = "cat " + tmp_bkg_regions + " | bedtools sort | uniq -u > " + tmp_regions
+        os.system(cmd)
+
+    return tmp_regions
+
+
 def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives, 
                             ambiguous = None, regions = None,
                             bin_size=200, flank_size=400, stride=50,
                             n_jobs=1, genome='hg19',
                             min_bin_distance_to_chrom_edge=5000):
-    """ 
+    ''' 
     generate labels for multitask training
 
     Parameters
@@ -154,52 +249,17 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
     regions          : (not supported yet) 
                        total regions being labeled. If not specified, 
                        use the union of positives
-    """
+    '''
     #os.system("mkdir -p " + tmpDir)
 
     logging.debug("bin-size=%d, stride=%d" % (bin_size, stride))
     load_chrom_sizes(chrom_sizes_fn)
 
-    ############################################
-    ### positives
-    
-    # unzip the original positive input interval files from each task to tmpDir
-    p_unzips = []
-    for p_orig in positives:
-        if p_orig[-3:] == ".gz":
-            # basename extracts the last part of the path, the filename
-            p_unzip = tmpDir + basename(p_orig[:-3]) # remove ".gz" from filename
-            os.system("pigz -d -c " + p_orig + " | bedtools sort > " + p_unzip) # unzip and sort p_orig to p_unzip
-        else:
-            p_unzip = tmpDir + basename(p_orig)
-            os.system("cat "       + p_orig + " | bedtools sort > " + p_unzip) # copy and sort p_orig to p_unzip
-        p_unzips.append(p_unzip)
+    pos_unzips, amb_unzips = unzip_peaks(positives, ambiguous)
 
-    ############################################
-    ### ambigous
-
-    # unzip all original ambiguous input intervals to tmpDir
-    if ambiguous != None:
-        assert(len(positives) == len(ambiguous)) # ensure same number of tasks
-        
-        a_unzips = []
-        for a_orig in ambiguous:
-            if a_orig == None:
-                a_unzip = ""
-            else:
-                if a_orig[-3:] == ".gz":
-                    a_unzip = tmpDir + basename(a_orig[:-3]) # remove ".gz"
-                    os.system("pigz -d -c " + a_orig + " | bedtools sort > " + a_unzip)
-                else:
-                    a_unzip = tmpDir + basename(a_orig)
-                    os.system("cat "       + a_orig + " | bedtools sort > " + a_unzip)
-            a_unzips.append(a_unzip)
-
-    ############################################
-    
     # sort and merge the positives 
     tmp_pos_regions = tmpDir + "_tmp_pos_regions.tsv"
-    cmd = "cat " + " ".join(p_unzips) + \
+    cmd = "cat " + " ".join(pos_unzips) + \
         " | cut -f 1-3 | bedtools sort | bedtools merge > " + tmp_pos_regions
     os.system(cmd)
 
@@ -207,61 +267,15 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
     tmp_core_regions = tmpDir + "_tmp_core_regions.tsv"
     make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
 
-
-    if regions == None:
-        # if no background regions were specified, use the union of positives as regions
-        tmp_regions = tmp_core_regions
-    else:
-
-        # sort and merge the positives and ambiguous
-        tmp_regions = tmpDir + "_tmp_regions.tsv"
-        cmd = "cat " + regions + " | cut -f 1-3 | bedtools sort | bedtools merge  > " + tmp_regions
-        os.system(cmd)
-
-        #tmp_comp_regions = tmpDir + "_tmp_comp_regions.tsv"
-        #cmd = "bedtools subtract -a " + regions + " -b " + tmp_regions + " > " + tmp_comp_regions
-        #os.system(cmd)
-
-        tmp_expanded_bkg_regions = tmpDir + "_tmp_expanded_bkg_regions.tsv"
-        expanded_window_size = bin_size + 2 * flank_size
-        make_windows(tmp_regions, tmp_expanded_bkg_regions, 
-                     bin_size=expanded_window_size, stride=expanded_window_size)     
-
-        # generate unexpanded regions for labeling
-        tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
-        os.system("bedtools slop -i " + tmp_expanded_bkg_regions + " -g " + \
-            chrom_sizes_fn + " -b " + str(-flank_size) + " > " + tmp_bkg_regions)
-
-        os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
-        #os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
-        #os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
-
-        cmd = "cat " + tmp_bkg_regions + " | bedtools sort | uniq -u > " + tmp_regions
-        os.system(cmd)
+    tmp_regions = handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
+                                              bin_size=bin_size, flank_size=flank_size)
 
     logging.info("LABEL_REGIONS sort merge done")
 
-    # generate intersects with positives
-    pos_intersects = []
-    for p in p_unzips:
-        p_intersect = tmpDir + "_tmp_pint_" + basename(p)
-        os.system("bedtools intersect -a " + tmp_regions + " -b " + p + \
-            " -sorted -wa -f 0.5 -F 0.5 -e -u > " + p_intersect) # add -c later
-        #os.system("bedtools intersect -a " + tmp_core_regions + " -b " + p + \
-        #    " -sorted -wa -f 0.5 -F 0.5 -e -c | cut -f 4 > " + p_intersect)
-        pos_intersects.append(p_intersect)
+    # generate positive and ambigous intersects
+    pos_intersects, amb_intersects = gen_intersects(pos_unzips, amb_unzips, tmp_regions)
 
-    # generate intersects with ambiguous
-    amb_intersects = []
-    for a in a_unzips:
-        a_intersect = tmpDir + "_tmp_aint_" + basename(a)
-        os.system("bedtools intersect -a " + tmp_regions + " -b " + a + \
-            " -sorted -wa -f 0.5 -F 0.5 -e -u > " + a_intersect) # add -c later
-        #os.system("bedtools intersect -a " + tmp_core_regions + " -b " + a + \
-        #    " -sorted -wa -f 0.5 -F 0.5 -e -c | cut -f 4 > " + a_intersect)
-        amb_intersects.append(a_intersect)
-
-    # generate expanded regions
+    # generate expanded regions for added context
     tmp_expanded_regions = tmpDir + "_tmp_expanded_regions.tsv"
     os.system("bedtools slop -i " + tmp_regions + " -g " + \
         chrom_sizes_fn + " -b " + str(flank_size) + " > " + tmp_expanded_regions)
@@ -283,11 +297,6 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
     logging.info("LABEL_REGIONS labels done")
     # shuffle the lines
     os.system("shuf " + tmp_expanded_regions + " | pigz > " + labels_multitask)
-
-    # clean up temp files generated
-    #os.system("rm -f " + tmp_regions + ";" +
-    #          "rm -f " + tmp_core_regions + ";" +
-    #          "rm -f " + tmp_expanded_regions + ";")
 
     logging.info("LABEL_REGIONS ALL DONE *****")
 
@@ -351,7 +360,7 @@ def make_temp_directory():
     try:
         yield temp_dir
     finally:
-        #shutil.rmtree(temp_dir)
+        shutil.rmtree(temp_dir)
         pass
 
 
