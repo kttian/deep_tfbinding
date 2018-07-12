@@ -36,6 +36,7 @@ if start <= -1:
     os.system("cp -r " + templateDir + "/config .")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
     os.system("cp -f config/hyperparameter_configs_list.yaml.from_scratch config/hyperparameter_configs_list.yaml")
+    quit()
 
 if start <= 0:
     os.system("python prepare_data.py --no-bg > logs/pre_prepare.log 2>&1")

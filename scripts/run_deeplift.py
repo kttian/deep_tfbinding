@@ -100,7 +100,7 @@ keras_model_json    = sys.argv[1] + "Json.json"
 input_file          = sys.argv[2]    # subset.txt, sequences without fasta header line ">"
 if len(sys.argv) == 4:
     start_task      = 0
-    end_tasks       = int(sys.argv[3])
+    end_task        = int(sys.argv[3])
 
 else:
     start_task      = int(sys.argv[3])
@@ -140,13 +140,6 @@ import deeplift
 from keras.models import model_from_json
 
 #load the keras model
-'''
-keras_model_weights = "keras2_conv1d_record_5_model_PQzyq_modelWeights.h5"
-keras_model_json = "keras2_conv1d_record_5_model_PQzyq_modelJson.json"
-
-keras_model = model_from_json(open(keras_model_json).read())
-keras_model.load_weights(keras_model_weights)
-'''
 keras_model = model_from_json(open(keras_model_json).read())
 keras_model.load_weights(keras_model_weights)
 
@@ -356,41 +349,6 @@ for task_idx in all_tasks:
 # It's good to do this as another sanity check. The sequences picked here match the sequences visualized in the corresponding DeepLIFT genomics notebook.
 
 # In[13]:
-
-'''
-from modisco.visualization import viz_sequence
-
-print("Scores for task 0, seq idx 731")
-print("Actual contributions")
-viz_sequence.plot_weights(task_to_contrib_scores[0][731])
-print("Mean-normalized hypothetical contributions")
-viz_sequence.plot_weights(task_to_hyp_contrib_scores[0][731])
-
-print("Scores for task 1, seq idx 197")
-print("Actual contributions")
-viz_sequence.plot_weights(task_to_contrib_scores[1][197])
-print("Mean-normalized hypothetical contributions")
-viz_sequence.plot_weights(task_to_hyp_contrib_scores[1][197])
-
-# ## Save the importance scores
-
-# In[14]:
-
-import h5py
-import os
-
-if (os.path.isfile("scores.h5")):
-    os.system('rm scores.h5')
-f = h5py.File("scores.h5")
-g = f.create_group("contrib_scores")
-for task_idx in all_tasks:
-    g.create_dataset("task"+str(task_idx), data=task_to_contrib_scores[task_idx])
-g = f.create_group("hyp_contrib_scores")
-for task_idx in all_tasks:
-    g.create_dataset("task"+str(task_idx), data=task_to_hyp_contrib_scores[task_idx])
-f.close()
-'''
-
 
 # In[ ]:
 
