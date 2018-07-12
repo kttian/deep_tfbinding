@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
+
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+
+import sys
+logging.info(" ".join(sys.argv))
+
 import os
 
 
@@ -23,13 +34,6 @@ logDir     = resultsDir + "log/"
 
 positives = []
 ambiguous = []
-
-import logging
-logging.basicConfig(
-        format='%(asctime)s %(levelname)-5s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
-
 
 # must run from resultsDir
 

@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 # to run the modisco pipeline
 
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+import sys
+logging.info(" ".join(sys.argv))
+
 import os
 
 ROOT_DIR    = os.getenv('TFNET_ROOT', "../../") 
