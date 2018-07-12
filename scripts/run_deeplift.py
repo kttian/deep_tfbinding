@@ -3,6 +3,14 @@
 # It relies on the TAL-GATA example model in the DeepLIFT repository
 
 from __future__ import print_function, division
+import logging
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+import sys
+logging.info(" ".join(sys.argv))
 
 import datetime
 start = datetime.datetime.now()
@@ -12,12 +20,6 @@ import gzip
 import numpy as np
 import psutil
 import os
-
-import logging
-logging.basicConfig(
-        format='%(asctime)s %(levelname)-5s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
 
 from sys import getsizeof
 from pympler.asizeof import asizeof
@@ -89,17 +91,23 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
             zeros_array[i,char_idx] = 1
             
 import sys
-if len(sys.argv) != 4:
-    print("Syntax: ", sys.argv[0] , " <model name> <sequence file> <number of tasks>")
+if len(sys.argv) < 4 or len(sys.argv) > 5:
+    print("Syntax: ", sys.argv[0] , " <model name> <sequence file> {<start_task> <end_task(exclusive)> | <end task(exclusive)>}")
     quit()
 
 keras_model_weights = sys.argv[1] + "Weights.h5"
 keras_model_json    = sys.argv[1] + "Json.json"
 input_file          = sys.argv[2]    # subset.txt, sequences without fasta header line ">"
-num_tasks           = int(sys.argv[3])
+if len(sys.argv) == 4:
+    start_task      = 0
+    end_tasks       = int(sys.argv[3])
+
+else:
+    start_task      = int(sys.argv[3])
+    end_task        = int(sys.argv[4])
 
 logging.info("loading models from " + keras_model_json + " " + keras_model_weights)
-logging.info("input sequence file is " + input_file + ", number of tasks is " + str(num_tasks))
+logging.info("input sequence file is " + input_file + ", range of tasks are " + str(start_task)+":"+str(end_task))
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -258,7 +266,7 @@ hypothetical_contribs_many_refs_func = get_shuffle_seq_ref_function(
 # In[10]:
 
 num_refs_per_seq = 10
-all_tasks = range(num_tasks)
+all_tasks = range(start_task, end_task)
 
 log_mem_usage(1, "memory check location 3")
 

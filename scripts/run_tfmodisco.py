@@ -7,7 +7,9 @@ logging.basicConfig(
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
 
-logging.debug("start run_tf_modisco")
+import sys
+logging.info(" ".join(sys.argv))
+
 import os
 import matplotlib as mpl
 mpl.use('Agg')
