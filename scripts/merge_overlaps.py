@@ -2,10 +2,6 @@
 from __future__ import print_function, division
 
 import logging
-logging.basicConfig(
-        format='%(asctime)s %(levelname)-5s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
 
 import numpy as np
 
@@ -27,16 +23,19 @@ class MergeOverlaps:
         '''
         self.merged_hyp_scores_list = merged_hyp_scores_list
         self.merged_seq_list        = merged_seq_list
-        self.chrom      = chrom      # rest init at new interval
+        self.chrom         = chrom      # rest init at new interval
         self.merged_st     = merged_st
         self.merged_en     = merged_en
         self.merged_seq    = ""
         self.merged_scores = np.zeros((0, 4))
         self.merged_counts = np.zeros(0)
-        self.max_seq_size = 0
-        self.core_size    = core_size
-        logging.debug("MergeOverlaps: %s", 
-                      "append to seq_list" if self.merged_seq_list != None else "-" )
+        self.core_size     = core_size
+        self.max_seq_size  = 0
+        self.in_seq_count  = 0
+        self.out_seq_count = 0
+
+        #logging.debug("MergeOverlaps: %s", 
+        #              "append to seq_list" if self.merged_seq_list != None else "-" )
 
     def close_interval(self):
 
@@ -50,7 +49,7 @@ class MergeOverlaps:
         if self.merged_seq_list != None:
             self.merged_seq_list.append(self.merged_seq)
 
-        if self.merged_en - self.merged_st > self.max_seq_size : # i'm keeping track of the max sequence size
+        if self.merged_en - self.merged_st > self.max_seq_size : # keeping track of the max sequence size
             self.max_seq_size = self.merged_en - self.merged_st
 
         '''
@@ -150,7 +149,6 @@ class MergeOverlaps:
 
 def merge_overlaps(in_tsv_fn, hyp_scores_all, merged_hyp_scores_list, seq_list, merged_seq_list):
 
-    logging.debug("in_tsv = " + in_tsv_fn)
     with open(in_tsv_fn,'r') as tsvin:
         merged = MergeOverlaps(merged_hyp_scores_list, merged_seq_list)
         for idx, line in enumerate(tsvin):
@@ -161,6 +159,10 @@ def merge_overlaps(in_tsv_fn, hyp_scores_all, merged_hyp_scores_list, seq_list, 
 
             hyp_scores = hyp_scores_all[idx]
             merged.process_one_interval(chrom, st, en, hyp_scores, seq_list[idx])
+
+        logging.debug("merged overlaps based on in_tsv %s, %d seqs merged into %d seqs, max len %d" %
+                      (in_tsv_fn, len(hyp_scores_all ), len(merged_hyp_scores_list), 
+                       merged.max_seq_size))
 
 
 
