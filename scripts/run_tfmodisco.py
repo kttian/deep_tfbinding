@@ -59,213 +59,8 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
         elif (one_hot_axis==1):
             zeros_array[i,char_idx] = 1
 
-# ### Class to calculate average deeplift scores among overlapping sequences
-class AverageScores:
-
-    def __init__(self, avg_hyp_scores_list, avg_scores_seq_list,
-                 chrom=None, avg_st=0, avg_en=0, core_size=400):
-        ''' 
-        constructor
-        self.avg_hyp_scores_list : newly calculated average hyp scores list
-        self.avg_scores_seq_list : new sequence list (after merging/averaging overlaps)
-        self.avg_st       : start of the new interval
-        self.avg_en       : end   of the new interval
-        self.avg_scores   : new scores array, will be add to avg_hyp_scores_list
-        self.avg_counts   : counts array, has the same len as the self.avg_scores
-        self.avg_seq      : new sequence, will be add to avg_scores_seq_list
-        self.max_seq_size : max seq size this obj has seen
-        '''
-        self.avg_hyp_scores_list = avg_hyp_scores_list
-        self.avg_scores_seq_list        = avg_scores_seq_list
-        self.chrom      = chrom      # rest init at new interval
-        self.avg_st     = avg_st
-        self.avg_en     = avg_en
-        self.avg_seq    = ""
-        self.avg_scores = np.zeros((0, 4))
-        self.avg_counts = np.zeros(0)
-        self.max_seq_size = 0
-        self.core_size    = core_size
-        logging.debug("AverageScores: %s", 
-                      "append to seq_list" if self.avg_scores_seq_list != None else "-" )
-
-    def close_interval(self):
-
-        if self.avg_st == self.avg_en: return # nothing to close
-
-        ### generate a sequence between avg_st, avg_en ###
-
-        self.avg_scores /= self.avg_counts[:, None] # calculate the average
-
-        self.avg_hyp_scores_list.append(self.avg_scores)
-        if self.avg_scores_seq_list != None:
-            self.avg_scores_seq_list.append(self.avg_seq)
-
-        if self.avg_en - self.avg_st > self.max_seq_size : # i'm keeping track of the max sequence size
-            self.max_seq_size = self.avg_en - self.avg_st
-
-        '''
-        logging.debug("close interval: %s:%d-%d, len=%d max=%d %s", 
-                      self.chrom, self.avg_st, self.avg_en, 
-                      self.avg_en - self.avg_st, self.max_seq_size,
-                      "append to seq_list" if self.avg_scores_seq_list != None else "-" )
-        # write the interval to file
-        if self.ofh :
-            self.ofh.write(self.chrom + "\t" + str(self.avg_st) + "\t" + \
-                           str(self.avg_en) + "\n")
-        logging.debug("scores = ")
-        logging.debug(self.avg_scores)
-        logging.debug("counts = ")
-        logging.debug(self.avg_counts)
-        '''
-
-        # reset for calculating the avg of the next set of overlapping intervals
-        self.avg_st = self.avg_en
-        self.avg_scores = np.zeros((0, 4))
-        self.avg_counts = np.zeros(0)
-        self.avg_seq    = ""
-
-    def append_interval(self, chrom, st, en, scores_hyp, seq):
-        '''
-        process the next interval <st, en>
-
-        Parameters:
-        ----------
-        st:     start of the next interval to be processed
-        en:     end   of the interval
-        scores_hyp: input hyp scores array of the next interval, offset st : en
-
-        Returns:
-        ----------
-        self.avg_en: the new end
-
-                self.avg_st     self.avg_en
-                          v     v
-        self.avg_scores:  SSSSSS
-               O=Overlap    OOOOAA    A=Append
-        scores_hyp:         HHHHHH
-                            ^     ^
-                            st    en
-        '''
-        
-        assert(st >= self.avg_st) # intervals must be sorted
-        if chrom != self.chrom or st > self.avg_en : # handle the non-overlapping case
-            self.chrom  = chrom
-            self.avg_st = st
-            self.avg_en = st
-
-        '''
-        length of the overlap = self.avg_en - st
-        overlap is self.avg_scores[st - self.avg_st : self.avg_en - self.avg_st]
-        overlap is scores_hyp[0 : self.avg_en - st]
-        '''
-        if st > self.avg_st : # non-empty overlap
-            self.avg_scores[st - self.avg_st : self.avg_en - self.avg_st] += \
-                scores_hyp[0:self.avg_en - st]
-            self.avg_counts[st - self.avg_st : self.avg_en - self.avg_st] += \
-                np.ones(self.avg_en - st)
-        
-        '''
-        part to append, len = en - self.avg_en
-        scores_hyp[self.avg_en-st : en-st    ]
-        '''
-        if en > self.avg_en : # non-empty append
-            self.avg_scores = np.concatenate((self.avg_scores,
-                                              scores_hyp[self.avg_en - st : en - st]), 
-                                              axis = 0)
-            self.avg_counts = np.concatenate((self.avg_counts, np.ones(en-self.avg_en)), 
-                                              axis = 0)
-            if self.avg_scores_seq_list != None:
-                self.avg_seq    += seq[self.avg_en - st : en - st]
-            self.avg_en = en
-
-        return self.avg_en
-
-
-    def process_one_interval(self, chrom, st, en, scores_hyp, seq):
-        
-        seq_size = en - st
-        left     = int((seq_size - self.core_size) / 2)
-        right    = left + self.core_size
-
-        if chrom != self.chrom or st > self.avg_en: # start a new interval
-            self.close_interval()
-
-        #self.append_interval(chrom, st, en, scores_hyp, seq)
-        self.append_interval(chrom, st + left, st + right, scores_hyp[left:right], 
-                             seq[left:right])
-
-        #logging.debug("processed interval %s:%d-%d, reduce to %d-%d",
-        #              chrom, st, en, st+left, st+right)
-
-def average_scores(in_tsv, hyp_scores_all, avg_hyp_scores_list, seq_list, avg_scores_seq_list):
-
-    logging.debug("in_tsv = " + in_tsv)
-    with open(in_tsv,'r') as tsvin:
-        avg = AverageScores(avg_hyp_scores_list, avg_scores_seq_list)
-        for idx, line in enumerate(tsvin):
-            row = line.split()
-            chrom = row[0]
-            st    = int(row[1])
-            en    = int(row[2])
-
-            scores_hyp = hyp_scores_all[idx]
-            avg.process_one_interval(chrom, st, en, scores_hyp, seq_list[idx])
-
-
-# ### testing code for AverageScores
-def gen_tests(seq_size, seq_stride):
-    letters = ['A','C', 'T', 'G']
-    tsv_list = []
-    seq_list = []
-    hyp_scores_all = np.zeros((10, seq_size, 4))
-    for i in range(5):
-        chrom ='chr1'
-        st = 100 + seq_stride * i
-        en = st + seq_size
-        tsv_list.append([chrom, st, en])
-        seq_list.append(letters[i%4]*seq_size)
-        hyp_scores_all[i].fill(0.1 * (i+1))
-
-    for i in range(5,10):
-        chrom ='chr1'
-        st = 500 + seq_stride * i
-        en = st + seq_size
-        tsv_list.append([chrom, st, en])
-        seq_list.append(letters[i%4]*seq_size)
-        hyp_scores_all[i].fill(0.1 * (i+1))
-
-    return tsv_list, hyp_scores_all, seq_list
-
-
-def do_test() :
-    seq_size   = 10
-    seq_stride = 2
-    tsv_list, hyp_scores_all, seq_list = gen_tests(seq_size, seq_stride)
-
-    logging.debug(tsv_list)
-    logging.debug(hyp_scores_all)
-    avg_hyp_scores_list = []
-    avg_scores_seq_list        = []
-    logging.debug("gen_tests DONE")
-
-    avg = AverageScores(avg_hyp_scores_list, avg_scores_seq_list=avg_scores_seq_list,
-                        core_size=8)
-    for i in range(len(tsv_list)):
-        chrom, st, en = tsv_list[i]
-        scores_hyp = hyp_scores_all[i]
-        seq        = seq_list[i]
-        avg.process_one_interval(chrom, st, en, scores_hyp, seq)
-    avg.close_interval()
-
-    #logging.debug(tsv_list)
-    for i in range(len(avg_hyp_scores_list)) :
-        ar = avg_hyp_scores_list[i]
-        logging.debug("i=%d shape of array = %s", i, str(ar.shape))
-        logging.debug(ar)
-        seq = avg_scores_seq_list[i]
-        logging.debug(seq)
-
-    logging.debug("average score DONE")
+from merge_overlaps import MergeOverlaps
+from merge_overlaps import merge_overlaps
 
 #do_test()
 #quit()
@@ -326,26 +121,26 @@ for i in range(num_tasks):
 
 # scores & their one-hot encodings
 
-avg_scores_seq_list        = []
-avg_scores_onehot_list     = []
+merged_seq_list        = []
+merged_onehot_list     = []
 for t in range(num_tasks):
-    avg_hyp_scores_list    = []
-    avg_target_scores_list = []
+    merged_hyp_scores_list     = []
+    merged_contrib_scores_list = []
 
     task = task_names[t]
     hyp_scores_all = np.load(scores_loc[t])
-    average_scores(input_tsv, hyp_scores_all, avg_hyp_scores_list, fasta_sequences,
-                   avg_scores_seq_list = avg_scores_seq_list if t==0 else None)
+    merge_overlaps(input_tsv, hyp_scores_all, merged_hyp_scores_list, fasta_sequences,
+                   merged_seq_list = merged_seq_list if t==0 else None)
 
-    for i in range(len(avg_hyp_scores_list)):
-        onehot_seq = one_hot_encode_along_channel_axis(avg_scores_seq_list[i])
-        target_scores = avg_hyp_scores_list[i] * onehot_seq
-        avg_target_scores_list.append(target_scores)
+    for i in range(len(merged_hyp_scores_list)):
+        onehot_seq = one_hot_encode_along_channel_axis(merged_seq_list[i])
+        contrib_scores = merged_hyp_scores_list[i] * onehot_seq
+        merged_contrib_scores_list.append(contrib_scores)
         if t == 0:
-            avg_scores_onehot_list.append(onehot_seq)
+            merged_onehot_list.append(onehot_seq)
 
-    task_to_hyp_scores[task] = avg_hyp_scores_list
-    task_to_scores[task]     = avg_target_scores_list
+    task_to_hyp_scores[task] = merged_hyp_scores_list
+    task_to_scores[task]     = merged_contrib_scores_list
 
     logging.debug("shape of hyp_score " + str(task_to_hyp_scores['task0'][0].shape))
     logging.debug("shape of score " + str(task_to_scores['task0'][0].shape))
@@ -470,7 +265,7 @@ tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
                             task_names=task_names,
                             contrib_scores        = task_to_scores,
                             hypothetical_contribs = task_to_hyp_scores,
-                            one_hot=avg_scores_onehot_list)
+                            one_hot=merged_onehot_list)
 
 
 logging.debug("**************** workflow done *********************")
