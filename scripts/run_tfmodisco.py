@@ -248,6 +248,25 @@ import modisco.coordproducers
 import modisco.metaclusterers
 #reload(modisco.metaclusterers)
 
+factory = modisco.tfmodisco_workflow.seqlets_to_patterns.TfModiscoSeqletsToPatternsFactory(
+              trim_to_window_size=30,
+              initial_flank_to_add=10,
+              kmer_len=8, num_gaps=3,
+              num_mismatches=2,
+              final_min_cluster_size=30)
+
+tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
+                            sliding_window_size=21,
+                            flank_size=10,
+                            target_seqlet_fdr=0.01,
+                            seqlets_to_patterns_factory=factory
+                        )(
+                            task_names=task_names,
+                            contrib_scores        = task_to_scores,
+                            hypothetical_contribs = task_to_hyp_scores,
+                            one_hot=avg_scores_onehot_list)
+
+"""
 #Slight modifications from the default settings
 factory = modisco.tfmodisco_workflow.seqlets_to_patterns.TfModiscoSeqletsToPatternsFactory(
               trim_to_window_size=15,
@@ -266,7 +285,7 @@ tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
                             contrib_scores        = task_to_scores,
                             hypothetical_contribs = task_to_hyp_scores,
                             one_hot=merged_onehot_list)
-
+"""
 
 logging.debug("**************** workflow done *********************")
 
