@@ -81,12 +81,12 @@ if start <= 3:
     #os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv")
     #os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset.tsv -fo subset.fa")
 
-    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa 3 > logs/deeplift.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa 5 > logs/deeplift.log 2>&1")
     print("step 3 deeplift done")
 
 #4 modisco
 if start <= 4:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv 3 > logs/modisco.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv 5 > logs/modisco.log 2>&1")
 
 """
 '''
