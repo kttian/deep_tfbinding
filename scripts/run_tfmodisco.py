@@ -264,7 +264,7 @@ tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
                             task_names=task_names,
                             contrib_scores        = task_to_scores,
                             hypothetical_contribs = task_to_hyp_scores,
-                            one_hot=avg_scores_onehot_list)
+                            one_hot=merged_onehot_list)
 
 """
 #Slight modifications from the default settings
