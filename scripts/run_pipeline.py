@@ -17,7 +17,7 @@ genomeDir   = ROOT_DIR + "/genome/"
 resultDir   = ROOT_DIR + "/results/"
 templateDir = resultDir + "/templates/"
 
-num_task = 3
+num_task = 5
 
 import sys
 if len(sys.argv) > 2:
@@ -27,7 +27,7 @@ if len(sys.argv) > 2:
 if len(sys.argv) == 2:
     start = int(sys.argv[1])
 else:
-    start = 1 # start with normal training
+    start = 0 # start with normal training
 
 os.system("mkdir -p logs")
 
@@ -44,8 +44,8 @@ if start <= 0:
 
     os.system("mkdir -p pretrain")
     os.chdir("model_files")
-    os.system("ln -s record_1_*Json.json  record_1_Json.json")
-    os.system("ln -s record_1_*Weights.h5 record_1_Weights.h5")
+    os.system("cp record_1_*Json.json  record_1_Json.json")
+    os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
     os.chdir("..")
     os.system("mv model_files pretrain")
 
@@ -69,8 +69,8 @@ if start <= 1:
 if start <= 2:
     os.system("momma_dragonn_train > logs/train.log 2>&1")
     os.chdir("model_files")
-    os.system("ln -s record_1_*Json.json  record_1_Json.json")
-    os.system("ln -s record_1_*Weights.h5 record_1_Weights.h5")
+    os.system("cp record_1_*Json.json  record_1_Json.json")
+    os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
     os.chdir("..")
     print("step 2 training done")
 
