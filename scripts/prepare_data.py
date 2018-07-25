@@ -32,6 +32,16 @@ resultsDir = "./"
 logDir     = resultsDir + "log/"
 #tmpDir     = "./tmp/"
 
+import sys
+if len(sys.argv) > 2:
+    print("Syntax: ", sys.argv[0] , " [--no-bg]")
+    quit()
+
+if len(sys.argv) == 2 and sys.argv[1] == "--no-bg":
+    add_bg = False
+else:
+    add_bg = True
+
 positives = []
 ambiguous = []
 
@@ -47,11 +57,11 @@ def process_tf(tf):
     #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
 
     import glob
-    ctcf_files = glob.glob(dataDir + "*-" + tf + "-human-*-optimal*")
+    tf_files = glob.glob(dataDir + "*-" + tf + "-human-*-optimal*")
 
     count = 0
     task_list = []
-    for path_name in ctcf_files:
+    for path_name in tf_files:
         fn = os.path.basename(path_name)
         fn_list = fn.split('-')
         exp  = fn_list[-2]
@@ -110,7 +120,6 @@ def process_tf(tf):
     
     background_str = " --background " + genomeDir + "hg19.tsv "
 
-
     # call tfdragonn labelregions
     #
     # labels_multitask_gz = "tflabel.intervals_file.tsv.gz"
@@ -119,9 +128,10 @@ def process_tf(tf):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + " --stride 20" + background_str
+          " --genome hg19 --prefix label " + " --stride 20"
+    if add_bg:
+         cmd = cmd + background_str
     logging.debug(cmd)
-
     os.system(cmd)
 
     labels_multitask    = labels_multitask_gz[:-3]
