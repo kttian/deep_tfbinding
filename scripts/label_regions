@@ -29,7 +29,8 @@ def load_chrom_sizes(chrom_sizes_fn):
             chrom_sizes[chrom.strip()] = int(size)
     
 
-def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, tasks = 0):
+def make_windows(in_name, out_name, bin_size=200, stride=50, flank_size=400, 
+                 expand = True, tasks = 0, background=False)
     '''
         takes in intervals and expands interval lengths to be a multiple of stride (50)
         outputs a list of intervals, using sliding window of length bin_size (200)
@@ -50,6 +51,8 @@ def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, 
                 continue
             if len(chrom) > 5:
                 continue
+            if not background and (chrom == 'chr1' or chrom == 'chr2'):
+                continue # these are test/valid chrom
 
             peak_length = end - start
             if expand :
@@ -58,7 +61,6 @@ def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, 
             else : 
                 total_length = peak_length # no expand
                 
-
             extend_left = int((total_length - peak_length)/2)
             extend_left = 0
             extend_right = total_length - peak_length - extend_left
@@ -67,8 +69,8 @@ def make_windows(in_name, out_name, bin_size = 200, stride = 50, expand = True, 
             right = end + extend_right
 
             # write out the new "unified" intervals
-            right_max = chrom_sizes[chrom] - min_from_edge
-            for le in range(max(left, min_from_edge), 
+            right_max = chrom_sizes[chrom] - min_from_edge - flank_size
+            for le in range(max(left, min_from_edge + flank_size), 
                             min(right, right_max) - bin_size + 1, stride):
                 tsvout.write(chrom + "\t" + str(le) + "\t" + str(le + bin_size) + label_str + "\n")
 
@@ -200,7 +202,7 @@ def gen_intersects(pos_unzips, amb_unzips, tmp_regions):
     return pos_intersects, amb_intersects
 
 def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
-                                bin_size=200, flank_size=400):
+                                bin_size=200, flank_size=400, bg_stride=1000):
     if regions == None:
         # if no background regions were specified, use the union of positives as regions
         tmp_regions = tmp_core_regions
@@ -209,17 +211,10 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
         cmd = "cat " + regions + " | cut -f 1-3 | bedtools sort | bedtools merge  > " + tmp_regions
         os.system(cmd)
 
-        tmp_expanded_bkg_regions = tmpDir + "_tmp_expanded_bkg_regions.tsv"
-        expanded_window_size = bin_size + 2 * flank_size
-
-        # for background, make expanded sized windows directly (1000 instead of usual 200)
-        make_windows(tmp_regions, tmp_expanded_bkg_regions, 
-                     bin_size=expanded_window_size, stride=expanded_window_size)     
-
-        # generate shrunk regions for labeling (using negative flank_size)
         tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
-        os.system("bedtools slop -i " + tmp_expanded_bkg_regions + " -g " + \
-            chrom_sizes_fn + " -b " + str(-flank_size) + " > " + tmp_bkg_regions)
+        # for background, 200 bin_size, 1000 stride, 400 flank will create tiled windows
+        make_windows(tmp_regions, tmp_bkg_regions, 
+                     bin_size=bin_size, stride=bg_stride, background = True)     
 
         os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
 
@@ -231,7 +226,7 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
 
 def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives, 
                             ambiguous = None, regions = None,
-                            bin_size=200, flank_size=400, stride=50,
+                            bin_size=200, flank_size=400, stride=50, bg_stride=1000,
                             n_jobs=1, genome='hg19',
                             min_bin_distance_to_chrom_edge=5000):
     ''' 
@@ -268,7 +263,8 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
     make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
 
     tmp_regions = handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
-                                              bin_size=bin_size, flank_size=flank_size)
+                                              bin_size=bin_size, flank_size=flank_size,
+                                              bg_stride=bg_stride)
 
     logging.info("LABEL_REGIONS sort merge done")
 
@@ -320,7 +316,9 @@ def parse_args(args = None):
     parser.add_argument('--flank-size', type=int, default=400,
                         help='size of flanks around labeled bins.\nDefault: 400.')
     parser.add_argument('--stride', type=int, default=50,
-                        help='spacing between consecutive bins.\nDefault: 50.')
+                        help='spacing between consecutive bins in union of positives.\nDefault: 50.')
+    parser.add_argument('--bg-stride', type=int, default=1000,
+                        help='spacing between consecutive bins in background.\nDefault: 1000.')
     parser.add_argument('--genome', type=str, default='hg19',
                         help='Genome name.\nDefault: hg19.'
                         '\nOptions: hg18, hg38, mm9, mm10, dm3, dm6.')
@@ -345,7 +343,8 @@ def run_label_regions_from_args():
                                 genomeDir + "hg19.chrom.sizes", 
                                 positives, ambiguous=ambiguous, regions=args.background, 
                                 bin_size=args.bin_size, flank_size=args.flank_size, 
-                                stride=args.stride, genome=args.genome, n_jobs=args.n_jobs)
+                                stride=args.stride, bg_stride=args.bg_stride,
+                                genome=args.genome, n_jobs=args.n_jobs)
     else:
         raise RuntimeError("Must pass in positives, background, and task names!")
 
