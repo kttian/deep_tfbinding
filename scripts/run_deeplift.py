@@ -342,7 +342,7 @@ for task_idx in all_tasks:
     os.system("mkdir -p scores")
     filename = "scores/hyp_scores_task_" + str(task_idx) + ".npy"
     logging.info("saving hyp_scores_all to " + filename + ", shape = " + str(hyp_scores_all.shape))
-    np.save(filename, hyp_scores_all)
+    np.save(filename, hyp_scores_all.astype(np.float32))
 
 # ### Visualize the contributions and hypothetical contributions on a few sequences
 # 
