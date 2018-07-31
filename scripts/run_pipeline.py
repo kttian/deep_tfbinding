@@ -31,15 +31,16 @@ else:
 
 os.system("mkdir -p logs")
 
-if start <= -1:
+if start <= -2:
 #0 prepare_data with union of positives (no background) and train a model
     os.system("cp -r " + templateDir + "/config .")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
     os.system("cp -f config/hyperparameter_configs_list.yaml.from_scratch config/hyperparameter_configs_list.yaml")
     quit()
 
-if start <= 0:
+if start <= -1:
     os.system("python prepare_data.py --no-bg > logs/pre_prepare.log 2>&1")
+if start <= 0:
     os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
 
     os.system("mkdir -p pretrain")
