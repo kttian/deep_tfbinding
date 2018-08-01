@@ -20,26 +20,34 @@ templateDir = resultDir + "/templates/"
 num_task = 5
 
 import sys
-if len(sys.argv) > 2:
-    print("Syntax: ", sys.argv[0] , " [start]")
+if len(sys.argv) > 3:
+    print("Syntax: ", sys.argv[0] , " <TF name> [start]")
     quit()
 
-if len(sys.argv) == 2:
-    start = int(sys.argv[1])
+tf = sys.argv[1]
+
+if len(sys.argv) == 3:
+    start = int(sys.argv[2])
 else:
     start = 0 # start with normal training
 
+
 os.system("mkdir -p logs")
 
-if start <= -1:
+logging.debug("tf=%s, start=%d" % (tf, start))
+
+if start <= -2:
 #0 prepare_data with union of positives (no background) and train a model
     os.system("cp -r " + templateDir + "/config .")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
-    os.system("cp -f config/hyperparameter_configs_list.yaml.from_scratch config/hyperparameter_configs_list.yaml")
+    os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml hyperparameter_configs_list.yaml")
     quit()
 
+if start <= -1:
+    cmd = "python $TFNET_ROOT/scripts/prepare_data.py " + tf + " --no-bg > logs/pre_prepare.log 2>&1"
+    logging.info(cmd)
+    os.system(cmd)
 if start <= 0:
-    os.system("python prepare_data.py --no-bg > logs/pre_prepare.log 2>&1")
     os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
 
     os.system("mkdir -p pretrain")
@@ -48,6 +56,7 @@ if start <= 0:
     os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
     os.chdir("..")
     os.system("mv model_files pretrain")
+    os.system("mv *.hdf5 pretrain")
 
     os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > subset_nobg.tsv")
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed subset_nobg.tsv -fo subset_nobg.fa")
@@ -57,12 +66,12 @@ if start <= 0:
     os.system("mv label* pretrain/")
     os.system("mv _tmp_* pretrain/")
 
-    os.system("cp -f config/hyperparameter_configs_list.yaml.pretrain config/hyperparameter_configs_list.yaml")
+    os.system("cp -f config/hyperparameter_configs_list_for_finetune.yaml config/hyperparameter_configs_list.yaml")
     print("step 0 pre_train done")
 
 #1 prepare_data with background for the main training
 if start <= 1:
-    os.system("python prepare_data.py > logs/prepare.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/prepare_data.py " + tf + " > logs/prepare.log 2>&1")
     print("step 1 prepare_data done")
 
 #2 train to continue from pre-trained data
@@ -97,7 +106,8 @@ list of ambiguous peaks for each task
 fasta of the whole genome
 sizes of the chromosomes
 
-Step 1: prepare_data.py
+Step 0: prepare_data.py and pretrain
+Step 1: prepare_data.py and train
 -----------------------------------------------------------------------
 '''
 # run prepare_data.py (executable), which calls label_regions script to create labeled bins
@@ -106,9 +116,9 @@ Step 1: prepare_data.py
 Outputs of prepare_data.py, inputs for momma_dragonn_train
 -------
 inputs.fa           # the input sequences for momma_dragonn_train
-splits/train.txt.gz # training set
-splits/valid.txt.gz # validation set
-splits/test.txt.gz  # testing set
+train.hdf5 # training set
+valid.hdf5 # validation set
+test.hdf5  # testing set
 
 
 Step 2: momma_dragonn_train

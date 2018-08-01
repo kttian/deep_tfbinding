@@ -29,15 +29,18 @@ def load_chrom_sizes(chrom_sizes_fn):
             chrom_sizes[chrom.strip()] = int(size)
     
 
-def make_windows(in_name, out_name, bin_size=200, stride=50, flank_size=400, 
-                 expand = True, tasks = 0, background=False)
+def make_windows(in_name, out_name, bin_size=200, stride=50,
+                 flank_size=400, expand = True, tasks = 0, skip_test=False):
     '''
         takes in intervals and expands interval lengths to be a multiple of stride (50)
         outputs a list of intervals, using sliding window of length bin_size (200)
     '''
+    logit = True
     label_str = ""
     for i in range(tasks) :
         label_str = label_str + "\t0"
+
+    orig_stride = stride
 
     with open(in_name,'r') as tsvin, open(out_name, 'w') as tsvout:
         # for row in tsvin:
@@ -51,18 +54,25 @@ def make_windows(in_name, out_name, bin_size=200, stride=50, flank_size=400,
                 continue
             if len(chrom) > 5:
                 continue
-            if not background and (chrom == 'chr1' or chrom == 'chr2'):
-                continue # these are test/valid chrom
+            if chrom == 'chr1' or chrom == 'chr2': # these are test/valid chrom 
+                if logit:
+                    logit = False
+                    logging.debug("in: skip_test=%d bin-size=%d, stride=%d" % (skip_test, bin_size, stride))
+                if skip_test :  # bg region is specified, use that and skip here
+                    continue 
+            else:
+                stride = orig_stride # restore original normal stride
 
             peak_length = end - start
-            if expand :
-                # total_length = stride * ceiling = smallest multiple of stride greater than peak_length
-                total_length = stride * int((peak_length - bin_size + stride - 1)/stride) + bin_size
-            else : 
-                total_length = peak_length # no expand
+
+            # total_length = smallest multiple of stride greater than peak_length
+            # but does not work when stride > bin_size
+            # total_length = stride * int((peak_length - bin_size + stride - 1)/stride) + bin_size
+
+            total_length = peak_length # no expand
                 
-            extend_left = int((total_length - peak_length)/2)
-            extend_left = 0
+            # extend_left = int((total_length - peak_length)/2)
+            extend_left = 0 # no expand to left
             extend_right = total_length - peak_length - extend_left
 
             left  = start - extend_left
@@ -213,8 +223,7 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
 
         tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
         # for background, 200 bin_size, 1000 stride, 400 flank will create tiled windows
-        make_windows(tmp_regions, tmp_bkg_regions, 
-                     bin_size=bin_size, stride=bg_stride, background = True)     
+        make_windows(tmp_regions, tmp_bkg_regions, bin_size=bin_size, stride=bg_stride)     
 
         os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
 
@@ -260,7 +269,13 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
 
     # unify the core region lengths to multiple of strides and make windows
     tmp_core_regions = tmpDir + "_tmp_core_regions.tsv"
-    make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride)     
+    if regions: # bg regions specified, skip test in union of positives
+        skip_test = True
+    else:
+        skip_test = False
+        
+    make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride, 
+                 skip_test=skip_test)     
 
     tmp_regions = handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
                                               bin_size=bin_size, flank_size=flank_size,
@@ -360,7 +375,6 @@ def make_temp_directory():
         yield temp_dir
     finally:
         shutil.rmtree(temp_dir)
-        pass
 
 
 if __name__ == '__main__':

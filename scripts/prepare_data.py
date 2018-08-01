@@ -33,11 +33,13 @@ logDir     = resultsDir + "log/"
 #tmpDir     = "./tmp/"
 
 import sys
-if len(sys.argv) > 2:
-    print("Syntax: ", sys.argv[0] , " [--no-bg]")
+if len(sys.argv) > 3:
+    print("Syntax: ", sys.argv[0] , " <TF name> [--no-bg]")
     quit()
 
-if len(sys.argv) == 2 and sys.argv[1] == "--no-bg":
+tf = sys.argv[1]
+
+if len(sys.argv) == 3 and sys.argv[2] == "--no-bg":
     add_bg = False
 else:
     add_bg = True
@@ -190,7 +192,6 @@ def make_temp_directory():
 
 if __name__ == '__main__':
 
-    tf = 'ZNF143'
     with make_temp_directory() as temp_dir:
         global tmpDir
         tmpDir = temp_dir + "/"
