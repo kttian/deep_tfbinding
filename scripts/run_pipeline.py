@@ -18,36 +18,44 @@ resultDir   = ROOT_DIR + "/results/"
 templateDir = resultDir + "/templates/"
 
 num_task = 5
+end = 100
 
 import sys
-if len(sys.argv) > 3:
-    print("Syntax: ", sys.argv[0] , " <TF name> [start]")
+if len(sys.argv) > 5:
+    print("Syntax: ", sys.argv[0] , " <TF name> <number of tasks> [start]")
     quit()
 
 tf = sys.argv[1]
+num_tasks = int(sys.argv[2])
+if num_tasks == 0:
+    print("Syntax: ", sys.argv[0] , " <TF name> <number of tasks> [start]")
+    quit()
 
-if len(sys.argv) == 3:
-    start = int(sys.argv[2])
+if len(sys.argv) == 4:
+    start = int(sys.argv[3])
+elif len(sys.argv) == 5:
+    start = int(sys.argv[3])
+    end   = int(sys.argv[4])
 else:
-    start = 0 # start with normal training
+    start = 20 # start with pre-train
 
 
 os.system("mkdir -p logs")
 
-logging.debug("tf=%s, start=%d" % (tf, start))
+logging.debug("tf=%s, num_tasks=%d start=%d end=%d" % (tf, num_tasks, start, end))
 
-if start <= -2:
+if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
     os.system("cp -r " + templateDir + "/config .")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
-    os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml hyperparameter_configs_list.yaml")
+    os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml config/hyperparameter_configs_list.yaml")
     quit()
 
-if start <= -1:
+if start <= 20 and end > 20:
     cmd = "python $TFNET_ROOT/scripts/prepare_data.py " + tf + " --no-bg > logs/pre_prepare.log 2>&1"
     logging.info(cmd)
     os.system(cmd)
-if start <= 0:
+if start <= 30 and end > 30:
     os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
 
     os.system("mkdir -p pretrain")
@@ -70,12 +78,12 @@ if start <= 0:
     print("step 0 pre_train done")
 
 #1 prepare_data with background for the main training
-if start <= 1:
+if start <= 40 and end > 40:
     os.system("python $TFNET_ROOT/scripts/prepare_data.py " + tf + " > logs/prepare.log 2>&1")
     print("step 1 prepare_data done")
 
 #2 train to continue from pre-trained data
-if start <= 2:
+if start <= 50 and end > 50:
     os.system("momma_dragonn_train > logs/train.log 2>&1")
     os.chdir("model_files")
     os.system("cp record_1_*Json.json  record_1_Json.json")
@@ -84,18 +92,18 @@ if start <= 2:
     print("step 2 training done")
 
 #3 deeplift
-if start <= 3:
+if start <= 60 and end > 60:
     # use the test set as the subset for deeplift
     # os.system("gunzip -c splits/test.txt.gz | perl -lane 'if ($.%2==1) {print}' | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv") # select half of testset
     #os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv")
     #os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset.tsv -fo subset.fa")
 
-    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa 5 > logs/deeplift.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + num_tasks + " > logs/deeplift.log 2>&1")
     print("step 3 deeplift done")
 
 #4 modisco
-if start <= 4:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv 5 > logs/modisco.log 2>&1")
+if start <= 70 and end > 70:
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv " + num_tasks + " > logs/modisco.log 2>&1")
 
 """
 '''
