@@ -66,17 +66,23 @@ from merge_overlaps import merge_overlaps
 #quit()
 
 import sys
-if len(sys.argv) != 5:
-    print("Syntax: ", sys.argv[0] , " <score prefix> <sequence fa file> <sequence tsv> <number of tasks> ")
+if len(sys.argv) < 5 or len(sys.argv) > 6:
+    print("Syntax: ", sys.argv[0] , " <score prefix> <sequence fa file> <sequence tsv> {<number of tasks> | <start task> <end task>}")
     quit()
 
 score_prefix = sys.argv[1]                 # "./scores/hyp_scores_task_"
 input_name   = sys.argv[2]                 # subset.fa, sequences 
 input_tsv    = sys.argv[3]                 # subset.tsv
-num_tasks    = int(sys.argv[4])            # 
+if len(sys.argv) == 5:
+    start_task    = 0
+    end_task    = int(sys.argv[4])            # 
+else:
+    start_task    = int(sys.argv[4])            # 
+    end_task    = int(sys.argv[5])            # 
 
-logging.debug("method file prefix is %s, input seq file is %s, input tsv is %s, number of tasks is %d", 
-              score_prefix, input_name, input_tsv, num_tasks)
+
+logging.debug("method file prefix is %s, input seq file is %s, input tsv is %s, start_task is %d end_task is %d", 
+              score_prefix, input_name, input_tsv, start_task, end_task)
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -114,7 +120,7 @@ task_to_hyp_scores = OrderedDict()
 # locations of deeplift scores
 scores_loc = []
 task_names = []
-for i in range(num_tasks):
+for i in range(start_task , end_task):
     loc_i = score_prefix + str(i) + ".npy"
     scores_loc.append(loc_i)
     task_names.append("task" + str(i))
@@ -123,6 +129,7 @@ for i in range(num_tasks):
 
 merged_seq_list        = []
 merged_onehot_list     = []
+num_tasks = end_task - start_task
 for t in range(num_tasks):
     merged_hyp_scores_list     = []
     merged_contrib_scores_list = []
@@ -142,8 +149,9 @@ for t in range(num_tasks):
     task_to_hyp_scores[task] = merged_hyp_scores_list
     task_to_scores[task]     = merged_contrib_scores_list
 
-    logging.debug("shape of hyp_score " + str(task_to_hyp_scores['task0'][0].shape))
-    logging.debug("shape of score " + str(task_to_scores['task0'][0].shape))
+    if t == 0:
+        logging.debug("shape of hyp_score " + str(task_to_hyp_scores[task][0].shape))
+        logging.debug("shape of score " + str(task_to_scores[task][0].shape))
 
 """
 for i in range(num_tasks):
