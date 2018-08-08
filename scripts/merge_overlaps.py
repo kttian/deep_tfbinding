@@ -98,12 +98,12 @@ class MergeOverlaps:
                                st    en
         '''
         
-        assert(st >= self.merged_st) # intervals must be sorted
         if chrom != self.chrom or st > self.merged_en : # handle the non-overlapping case
             self.chrom  = chrom
             self.merged_st = st
             self.merged_en = st
 
+        assert(st >= self.merged_st) # intervals must be sorted
         '''
         length of the overlap = self.merged_en - st
         overlap is self.merged_scores[st - self.merged_st : self.merged_en - self.merged_st]
