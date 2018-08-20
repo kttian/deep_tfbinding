@@ -47,25 +47,23 @@ cell_lines = sys.argv[2:]
 #for tf in ['ZNF143']:
 
 import gzip
-def process_files(in_names, out_name, bin_size):
-    with open(out_name, 'w') as tsvout:
-        print("out_name= " + out_name)
-        for in_name in in_names:
-            with gzip.open(in_name,'r') as tsvin:
-    
-                for cnt, line in enumerate(tsvin):
-                
-                    fields = line.split('\t')
-                    if len(fields) < 10:
-                        continue
+def process_files(in_names, bin_size):
+    for in_name in in_names:
+        with gzip.open(in_name,'r') as tsvin:
 
-                    chrom = fields[0]
-                    start = int(fields[1])
-                    end   = int(fields[2])
-                    peak  = int(fields[9])
-                    left  = start + peak - int(bin_size/2)
+            for cnt, line in enumerate(tsvin):
+            
+                fields = line.split('\t')
+                if len(fields) < 10:
+                    continue
 
-                    tsvout.write(chrom + "\t" + str(left) + "\t" + str(left + bin_size) + "\n")
+                chrom = fields[0]
+                start = int(fields[1])
+                end   = int(fields[2])
+                peak  = int(fields[9])
+                left  = start + peak - int(bin_size/2)
+
+                sys.stdout.write(chrom + "\t" + str(left) + "\t" + str(left + bin_size) + "\n")
     
         
 def process_tf(tf, cells_set):
@@ -90,22 +88,22 @@ def process_tf(tf, cells_set):
             if not cell in cells_set:
                 continue
         task_list.append([cell, tf, exp])
-        print(path_name)
+        sys.stderr.write(path_name + "\n")
         count = count + 1
 
     #print(task_list)
-    print(count)
+    #print(count)
 
     positives = []
     for cell, tf, exp in task_list:
 
         positive = dataDir + cell + "-" + tf + "-human-" + exp + "-optimal_idr.narrowPeak.gz"
         if not os.path.isfile(positive):
-            print("ERR does not exist: ", positive)
+            continue
+            #print("ERR does not exist: ", positive)
         positives.append(positive)
 
-    out_name = tf + "_summit.tsv"
-    process_files(positives, out_name, 1000)
+    process_files(positives, 1000)
 
 
 # guarantee to clean up tmp dir
