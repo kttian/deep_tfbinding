@@ -47,7 +47,8 @@ logging.debug("tf=%s, num_tasks=%d start=%d end=%d" % (tf, num_tasks, start, end
 
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
-    os.system("cp -r " + templateDir + "/config .")
+    os.system("mkdir config")
+    os.system("cp -r " + templateDir + "/config.pf/ config/")
     os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml config/hyperparameter_configs_list.yaml")
     quit()
 
