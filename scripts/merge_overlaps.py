@@ -8,7 +8,7 @@ import numpy as np
 # ### Class to calculate average deeplift scores among overlapping sequences
 class MergeOverlaps:
 
-    def __init__(self, merged_hyp_scores_list, merged_seq_list,
+    def __init__(self, merged_hyp_scores_list, merged_seq_list=None, merged_tsv_list=None,
                  chrom=None, merged_st=0, merged_en=0, core_size=400):
         ''' 
         constructor
@@ -23,6 +23,7 @@ class MergeOverlaps:
         '''
         self.merged_hyp_scores_list = merged_hyp_scores_list
         self.merged_seq_list        = merged_seq_list
+        self.merged_tsv_list        = merged_tsv_list
         self.chrom         = chrom      # rest init at new interval
         self.merged_st     = merged_st
         self.merged_en     = merged_en
@@ -48,6 +49,9 @@ class MergeOverlaps:
         self.merged_hyp_scores_list.append(self.merged_scores)
         if self.merged_seq_list != None:
             self.merged_seq_list.append(self.merged_seq)
+        if self.merged_tsv_list != None:
+            self.merged_tsv_list.append([self.chrom, self.merged_st, self.merged_en])
+
 
         if self.merged_en - self.merged_st > self.max_seq_size : # keeping track of the max sequence size
             self.max_seq_size = self.merged_en - self.merged_st
@@ -147,10 +151,11 @@ class MergeOverlaps:
         #logging.debug("processed interval %s:%d-%d, reduce to %d-%d",
         #              chrom, st, en, st+left, st+right)
 
-def merge_overlaps(in_tsv_fn, hyp_scores_all, merged_hyp_scores_list, seq_list, merged_seq_list):
+def merge_overlaps(in_tsv_fn, hyp_scores_all, merged_hyp_scores_list, seq_list, merged_seq_list,
+                   merged_tsv_list=None):
 
     with open(in_tsv_fn,'r') as tsvin:
-        merged = MergeOverlaps(merged_hyp_scores_list, merged_seq_list)
+        merged = MergeOverlaps(merged_hyp_scores_list, merged_seq_list, merged_tsv_list)
         for idx, line in enumerate(tsvin):
             row = line.split()
             chrom = row[0]

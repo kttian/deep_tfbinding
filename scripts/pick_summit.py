@@ -66,7 +66,7 @@ def process_files(in_names, bin_size):
                 sys.stdout.write(chrom + "\t" + str(left) + "\t" + str(left + bin_size) + "\n")
     
         
-def process_tf(tf, cells_set):
+def process_tf(tf, cell_set):
 
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
@@ -84,7 +84,7 @@ def process_tf(tf, cells_set):
         exp  = fn_list[-2]
         tf   = fn_list[-4]
         cell = '-'.join(fn_list[:-4])
-        if cells_set != None and len(cell_set) != 0: # select cells only in the specified set
+        if cell_set != None and len(cell_set) != 0: # select cells only in the specified set
             if not cell in cells_set:
                 continue
         task_list.append([cell, tf, exp])
