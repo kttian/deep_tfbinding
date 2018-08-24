@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
 
+import sys
 import logging
+import os
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
 
 
-import sys
 logging.info(" ".join(sys.argv))
 
-import os
 
 
 """
@@ -32,14 +33,14 @@ resultsDir = "./"
 logDir     = resultsDir + "log/"
 #tmpDir     = "./tmp/"
 
-import sys
-if len(sys.argv) > 3:
-    print("Syntax: ", sys.argv[0] , " <TF name> [--no-bg]")
+if len(sys.argv) > 4:
+    print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> [--no-bg]")
     quit()
 
-tf = sys.argv[1]
+tfs = sys.argv[1]
+cell_lines = sys.argv[2]
 
-if len(sys.argv) == 3 and sys.argv[2] == "--no-bg":
+if len(sys.argv) == 4 and sys.argv[3] == "--no-bg":
     add_bg = False
 else:
     add_bg = True
@@ -52,14 +53,16 @@ ambiguous = []
 # loop through the TFs
 #for tf in ['ZNF143']:
 
-def process_tf(tf):
+def process_tf(tfs, cell_set=None):
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep1.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
 
     import glob
-    tf_files = glob.glob(dataDir + "*-" + tf + "-human-*-optimal*")
+    tf_files = []
+    for tf in tfs:
+        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-*-optimal*"))
 
     count = 0
     task_list = []
@@ -69,6 +72,9 @@ def process_tf(tf):
         exp  = fn_list[-2]
         tf   = fn_list[-4]
         cell = '-'.join(fn_list[:-4])
+        if cell_set != None and len(cell_set) != 0: # select cells only in the specified set
+            if not cell in cell_set:
+                continue
         task_list.append([cell, tf, exp])
         print(path_name)
         count = count + 1
@@ -118,7 +124,9 @@ def process_tf(tf):
     if has_ambiguous:
         ambiguous_str = " --ambiguous " + ','.join(ambiguous)
     else:
-        ambiguous_str = ""
+        ambiguous_str = " --ambiguous " + ','.join(ambiguous)
+        # TODO the following did not work for RELA
+        #ambiguous_str = ""
     
     background_str = " --background " + genomeDir + "hg19.tsv "
 
@@ -196,5 +204,12 @@ if __name__ == '__main__':
         global tmpDir
         tmpDir = temp_dir + "/"
 
-        process_tf(tf)
+        tfs = tfs.split(',')
+        if cell_lines == '-' :
+            cell_set = None
+        else:
+            cell_lines = cell_lines.split(',')
+            cell_set = set(cell_lines)
+
+        process_tf(tfs, cell_set)
 

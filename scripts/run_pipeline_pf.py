@@ -2,15 +2,15 @@
 # to run the modisco pipeline
 
 import logging
+import sys
+import os
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
 
-import sys
 logging.info(" ".join(sys.argv))
-
-import os
 
 ROOT_DIR    = os.getenv('TFNET_ROOT', "../../") 
 genomeDir   = ROOT_DIR + "/genome/"
@@ -20,7 +20,6 @@ templateDir = resultDir + "/templates/"
 num_task = 5
 end = 100
 
-import sys
 if len(sys.argv) > 6:
     print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> <number of tasks> [start]")
     quit()
@@ -39,7 +38,6 @@ elif len(sys.argv) == 6:
     end   = int(sys.argv[5])
 else:
     start = 20 # start with pre-train
-
 
 os.system("mkdir -p logs")
 

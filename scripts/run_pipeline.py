@@ -2,15 +2,15 @@
 # to run the modisco pipeline
 
 import logging
+import sys
+import os
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
 
-import sys
 logging.info(" ".join(sys.argv))
-
-import os
 
 ROOT_DIR    = os.getenv('TFNET_ROOT', "../../") 
 genomeDir   = ROOT_DIR + "/genome/"
@@ -20,25 +20,24 @@ templateDir = resultDir + "/templates/"
 num_task = 5
 end = 100
 
-import sys
-if len(sys.argv) > 5:
-    print("Syntax: ", sys.argv[0] , " <TF name> <number of tasks> [start]")
+if len(sys.argv) > 6:
+    print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> <number of tasks> [start]")
     quit()
 
 tf = sys.argv[1]
-num_tasks = int(sys.argv[2])
+cell_lines = sys.argv[2]
+num_tasks = int(sys.argv[3])
 if num_tasks == 0:
-    print("Syntax: ", sys.argv[0] , " <TF name> <number of tasks> [start]")
+    print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> <number of tasks> [start]")
     quit()
 
-if len(sys.argv) == 4:
-    start = int(sys.argv[3])
-elif len(sys.argv) == 5:
-    start = int(sys.argv[3])
-    end   = int(sys.argv[4])
+if len(sys.argv) == 5:
+    start = int(sys.argv[4])
+elif len(sys.argv) == 6:
+    start = int(sys.argv[4])
+    end   = int(sys.argv[5])
 else:
     start = 20 # start with pre-train
-
 
 os.system("mkdir -p logs")
 
@@ -52,7 +51,7 @@ if start <= 10:
     quit()
 
 if start <= 20 and end > 20:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data.py " + tf + " --no-bg > logs/pre_prepare.log 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data.py " + tf + " " + cell_lines + " --no-bg > logs/pre_prepare.log 2>&1"
     logging.info(cmd)
     os.system(cmd)
 if start <= 30 and end > 30:
@@ -79,7 +78,7 @@ if start <= 30 and end > 30:
 
 #1 prepare_data with background for the main training
 if start <= 40 and end > 40:
-    os.system("python $TFNET_ROOT/scripts/prepare_data.py " + tf + " > logs/prepare.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/prepare_data.py " + tf + " " + cell_lines + " > logs/prepare.log 2>&1")
     print("step 1 prepare_data done")
 
 #2 train to continue from pre-trained data
@@ -98,12 +97,12 @@ if start <= 60 and end > 60:
     #os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv")
     #os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset.tsv -fo subset.fa")
 
-    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + num_tasks + " > logs/deeplift.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + str(num_tasks) + " > logs/deeplift.log 2>&1")
     print("step 3 deeplift done")
 
 #4 modisco
 if start <= 70 and end > 70:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv " + num_tasks + " > logs/modisco.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv " + str(num_tasks) + " > logs/modisco.log 2>&1")
 
 """
 '''
