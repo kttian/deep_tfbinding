@@ -37,7 +37,7 @@ if len(sys.argv) < 2:
     print("Syntax: ", sys.argv[0] , " <TF name> <cell-lines>")
     quit()
 
-tf = sys.argv[1]
+tfs = sys.argv[1]
 
 cell_lines = sys.argv[2:]
 
@@ -66,7 +66,7 @@ def process_files(in_names, bin_size):
                 sys.stdout.write(chrom + "\t" + str(left) + "\t" + str(left + bin_size) + "\n")
     
         
-def process_tf(tf, cell_set):
+def process_tf(tfs, cell_set):
 
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
@@ -74,7 +74,9 @@ def process_tf(tf, cell_set):
     #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
 
     import glob
-    tf_files = glob.glob(dataDir + "*-" + tf + "-human-*-optimal*")
+    tf_files = []
+    for tf in tfs:
+        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-*-optimal*"))
 
     count = 0
     task_list = []
@@ -85,7 +87,7 @@ def process_tf(tf, cell_set):
         tf   = fn_list[-4]
         cell = '-'.join(fn_list[:-4])
         if cell_set != None and len(cell_set) != 0: # select cells only in the specified set
-            if not cell in cells_set:
+            if not cell in cell_set:
                 continue
         task_list.append([cell, tf, exp])
         sys.stderr.write(path_name + "\n")
@@ -124,6 +126,7 @@ if __name__ == '__main__':
         global tmpDir
         tmpDir = temp_dir + "/"
 
+        tfs = tfs.split(',')
         cell_set = set(cell_lines)
-        process_tf(tf, cell_set)
+        process_tf(tfs, cell_set)
 

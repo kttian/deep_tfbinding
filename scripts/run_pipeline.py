@@ -4,6 +4,7 @@
 import logging
 import sys
 import os
+import argparse
 
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
@@ -20,6 +21,30 @@ templateDir = resultDir + "/templates/"
 num_task = 5
 end = 100
 
+def parse_args(args = None):
+    parser = argparse.ArgumentParser('run_pipeline.py',
+                                     description='run pipe line for TF binding training',
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--tfs', type=str, help="List of transcription factors, separated by ','")
+    parser.add_argument('--cells', type=str, default=None, help="List of cell-lines, separated by ','")
+    parser.add_argument('--start', type=int, default=20, help="start stage")
+    parser.add_argument('--end', type=int, default=100, help="end stage")
+    parser.add_argument('--start-task', type=int, default=0, help="start tast")
+    parser.add_argument('--end-task', type=int, default=5, help="end task")
+    args = parser.parse_args(args)
+    return args
+
+args = parse_args()
+
+tfs        = args.tfs
+cell_lines = args.cells
+start      = args.start
+end        = args.end
+start_task = args.start_task
+end_task   = args.end_task
+num_tasks  = end_task - start_task
+
+'''
 if len(sys.argv) > 6:
     print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> <number of tasks> [start]")
     quit()
@@ -38,70 +63,107 @@ elif len(sys.argv) == 6:
     end   = int(sys.argv[5])
 else:
     start = 20 # start with pre-train
+'''
 
 os.system("mkdir -p logs")
 
-logging.debug("tf=%s, num_tasks=%d start=%d end=%d" % (tf, num_tasks, start, end))
+logging.debug("tf=%s, num_tasks=%d start=%d end=%d" % (tfs, num_tasks, start, end))
 
+#-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
     os.system("cp -r " + templateDir + "/config .")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
     os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml config/hyperparameter_configs_list.yaml")
-    quit()
+    sys.exit()
 
+#-------------------------------
 if start <= 20 and end > 20:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data.py " + tf + " " + cell_lines + " --no-bg > logs/pre_prepare.log 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --no-bg True "
+    if num_tasks >1 :
+        cmd += " --hdf5 True " 
+    cmd += " > logs/pre_prepare.log 2>&1"
     logging.info(cmd)
     os.system(cmd)
-if start <= 30 and end > 30:
-    os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
 
-    os.system("mkdir -p pretrain")
-    os.chdir("model_files")
-    os.system("cp record_1_*Json.json  record_1_Json.json")
-    os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
-    os.chdir("..")
-    os.system("mv model_files pretrain")
-    os.system("mv *.hdf5 pretrain")
-
-    os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > subset_nobg.tsv")
+    os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > subset_nobg.tsv")
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed subset_nobg.tsv -fo subset_nobg.fa")
-    os.system("mv splits pretrain")
 
-    os.system("mv runs_perf-metric-auROC.db pretrain/")
-    os.system("mv label* pretrain/")
-    os.system("mv _tmp_* pretrain/")
+    print("step 20 prepare for pre_train done")
 
-    os.system("cp -f config/hyperparameter_configs_list_for_finetune.yaml config/hyperparameter_configs_list.yaml")
-    print("step 0 pre_train done")
+#-------------------------------
+if start <= 30 and end > 30:
+    if num_tasks > 1:
+        rc = os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
+        print("momma_dragonn_train returned ", rc)
+        if rc != 0:
+            sys.exit()
+
+        os.chdir("model_files")
+        os.system("cp record_1_*Json.json  record_1_Json.json")
+        os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
+        os.chdir("..")
+        os.system("mkdir -p pretrain")
+        os.system("mv model_files pretrain")
+        os.system("mv *.hdf5 pretrain")
+        os.system("mv splits pretrain")
+        os.system("mv runs_perf-metric-auROC.db pretrain/")
+        os.system("mv label* pretrain/")
+        os.system("mv _tmp_* pretrain/")
+
+        os.system("cp -f config/hyperparameter_configs_list_for_finetune.yaml config/hyperparameter_configs_list.yaml")
+        print("step 30 pre_train done")
 
 #1 prepare_data with background for the main training
+#-------------------------------
 if start <= 40 and end > 40:
-    os.system("python $TFNET_ROOT/scripts/prepare_data.py " + tf + " " + cell_lines + " > logs/prepare.log 2>&1")
-    print("step 1 prepare_data done")
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --hdf5 True > logs/prepare.log 2>&1"
+    os.system(cmd)
+    print("step 40 prepare_data done")
 
 #2 train to continue from pre-trained data
+#-------------------------------
 if start <= 50 and end > 50:
-    os.system("momma_dragonn_train > logs/train.log 2>&1")
+    rc = os.system("momma_dragonn_train > logs/train.log 2>&1")
+    print("momma_dragonn_train returned ", rc)
+    if rc != 0:
+        sys.exit()
+
     os.chdir("model_files")
     os.system("cp record_1_*Json.json  record_1_Json.json")
     os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
     os.chdir("..")
-    print("step 2 training done")
 
-#3 deeplift
+    os.system("mkdir -p finetune")
+    os.system("cp -rp model_files finetune")
+    os.system("mv *.hdf5 finetune")
+    os.system("mv splits finetune")
+    os.system("mv runs_perf-metric-auROC.db finetune/")
+    os.system("mv label* finetune/")
+    os.system("mv _tmp_* finetune/")
+
+    print("step 50 training done")
+
+#-------------------------------
 if start <= 60 and end > 60:
-    # use the test set as the subset for deeplift
-    # os.system("gunzip -c splits/test.txt.gz | perl -lane 'if ($.%2==1) {print}' | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv") # select half of testset
-    #os.system("gunzip -c splits/test.txt.gz | sed 's/:/\t/; s/-/\t/' | sort -k1,1 -k2,2n > splits/subset.tsv")
-    #os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed splits/subset.tsv -fo subset.fa")
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --test-only True --bg-stride=50 > logs/test.log 2>&1"
+    os.system(cmd)
+    cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.log 2>&1"
+    os.system(cmd)
+    cmd = "python $TFNET_ROOT/scripts/analyze_data.py"
+    os.system(cmd)
+    os.system("cp -rp model_files finetune")
 
+    print("step 60 testing done")
+#3 deeplift
+#-------------------------------
+if start <= 70 and end > 70:
     os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + str(num_tasks) + " > logs/deeplift.log 2>&1")
-    print("step 3 deeplift done")
+    print("step 70 deeplift done")
 
 #4 modisco
-if start <= 70 and end > 70:
+#-------------------------------
+if start <= 80 and end > 80:
     os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv " + str(num_tasks) + " > logs/modisco.log 2>&1")
 
 """

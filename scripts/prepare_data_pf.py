@@ -4,6 +4,7 @@
 import sys
 import logging
 import os
+import argparse
 
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
@@ -32,18 +33,6 @@ genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
 logDir     = resultsDir + "log/"
 #tmpDir     = "./tmp/"
-
-if len(sys.argv) > 4:
-    print("Syntax: ", sys.argv[0] , " <TF names> <cell_lines> [--no-bg]")
-    quit()
-
-tfs = sys.argv[1]
-cell_lines = sys.argv[2]
-
-if len(sys.argv) == 4 and sys.argv[3] == "--no-bg":
-    add_bg = False
-else:
-    add_bg = True
 
 positives = []
 ambiguous = []
@@ -126,7 +115,8 @@ def process_tf(tfs, cell_set=None):
     if has_ambiguous:
         ambiguous_str = " --ambiguous " + ','.join(ambiguous)
     else:
-        ambiguous_str = ""
+        #ambiguous_str = ""
+        ambiguous_str = " --ambiguous " + ','.join(ambiguous)
     
     background_str = " --background " + genomeDir + "hg19.tsv "
 
@@ -138,9 +128,17 @@ def process_tf(tfs, cell_set=None):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + " --stride 20"
-    if add_bg:
-         cmd = cmd + background_str
+          " --genome hg19 --prefix label " + " --stride 10"
+
+    if args.no_bg == False:
+        cmd += background_str
+
+    if args.bg_stride >= 0:
+        cmd += " --bg-stride " + str(args.bg_stride) + " "
+
+    if args.test_only:
+        cmd += " --test-only True "
+
     logging.debug(cmd)
     os.system(cmd)
 
@@ -149,16 +147,18 @@ def process_tf(tfs, cell_set=None):
     os.system("pigz -d -c " + labels_multitask_gz +  " > " + labels_multitask)
 
     #make the splits
-    valid_chrom = "chr2\t"
-    test_chrom  = "chr1\t"
+    valid_chrom = "'chr2\t'"
+    test_chrom  = "'chr1\t'"
 
     os.system("mkdir -p splits")
     os.system("cat " + labels_multitask + " | grep -P " + valid_chrom + " | pigz -c > splits/valid.tsv.gz")
     os.system("cat " + labels_multitask + " | grep -P " + test_chrom  + " | pigz -c > splits/test.tsv.gz")
-    cmd = "cat " + labels_multitask + " labels.txt | grep -v -P \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.tsv.gz"
+    #cmd =     "cat " + labels_multitask + " | grep -v -P \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.tsv.gz"
+    cmd =     "cat " + labels_multitask + " | grep -v -P " + test_chrom + " | grep -v -P " + valid_chrom + " | grep -v -P '^id' | pigz -c > splits/train.tsv.gz"
     os.system(cmd)
 
-    if use_hdf5 != True:
+    os.system("echo '" + header + "' > headers.txt")
+    if args.hdf5 != True:
         logging.info("prepare_data done")
         return
 
@@ -174,7 +174,7 @@ def process_tf(tfs, cell_set=None):
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed " + labels_multitask + " -fo inputs.fa")
 
     #make the final inputs labels files from the shuffled lines (tfdragonn shuffles already)
-    os.system("echo " + header + " > labels.txt")
+    os.system("echo '" + header + "' > labels.txt")
     os.system("cat " + tmp_labels_wo_title + " >> labels.txt")
 
     #remove the intermediate files
@@ -185,9 +185,11 @@ def process_tf(tfs, cell_set=None):
     os.system("mkdir -p splits")
 
     #make the splits
-    os.system("cat labels.txt | grep " + valid_chrom + ": | pigz -c > splits/valid.txt.gz")
-    os.system("cat labels.txt | grep " + test_chrom  + ": | pigz -c > splits/test.txt.gz")
-    cmd = "cat labels.txt | grep -v \"" + test_chrom  + ":\|"+ valid_chrom + ":\|^id" + "\" | pigz -c > splits/train.txt.gz"
+    valid_chrom = "chr2:"
+    test_chrom  = "chr1:"
+    os.system("cat labels.txt | grep " + valid_chrom + " | pigz -c > splits/valid.txt.gz")
+    os.system("cat labels.txt | grep " + test_chrom  + " | pigz -c > splits/test.txt.gz")
+    cmd =     "cat labels.txt | grep -v \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.txt.gz"
     os.system(cmd)
 
     os.system("pigz -f labels.txt")
@@ -209,17 +211,32 @@ def make_temp_directory():
     finally:
         shutil.rmtree(temp_dir)
 
+def parse_args(args = None):
+    parser = argparse.ArgumentParser('prepare_data_pf.py',
+                                     description='prepare data for TF binding training',
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--tfs', type=str, default=None, help="List of transcription factors, separated by ','")
+    parser.add_argument('--cells', type=str, default=None, help="List of cell-lines, separated by ','")
+    parser.add_argument('--no-bg', type=bool, default=False, help="No background regions")
+    parser.add_argument('--bg-stride', type=int, default=-1, help="Stride in background regions")
+    parser.add_argument('--test-only', type=bool, default=False, help="only prepare data for test and validation")
+    parser.add_argument('--hdf5', type=bool, default=False, help="produce hdf5 as well")
+    args = parser.parse_args(args)
+    return args
+
 if __name__ == '__main__':
+
+    args = parse_args()
 
     with make_temp_directory() as temp_dir:
         global tmpDir
         tmpDir = temp_dir + "/"
 
-        tfs = tfs.split(',')
-        if cell_lines == '-' :
+        tfs = args.tfs.split(',')
+        if args.cells == '-' :
             cell_set = None
         else:
-            cell_lines = cell_lines.split(',')
+            cell_lines = args.cells.split(',')
             cell_set = set(cell_lines)
 
         process_tf(tfs, cell_set)

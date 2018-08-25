@@ -4,18 +4,8 @@
 
 from __future__ import print_function, division
 import logging
-logging.basicConfig(
-        format='%(asctime)s %(levelname)-5s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
-
 import sys
-logging.info(" ".join(sys.argv))
-
 import datetime
-start = datetime.datetime.now()
-print ("start time " + str(start))
-
 import gzip
 import numpy as np
 import psutil
@@ -23,6 +13,17 @@ import os
 
 from sys import getsizeof
 from pympler.asizeof import asizeof
+
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+logging.info(" ".join(sys.argv))
+
+start = datetime.datetime.now()
+print ("start time " + str(start))
+
 
 def log_mem_usage(step=100, msg=""):
     GB = 2**30
@@ -90,7 +91,6 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
         elif (one_hot_axis==1):
             zeros_array[i,char_idx] = 1
             
-import sys
 if len(sys.argv) < 4 or len(sys.argv) > 5:
     print("Syntax: ", sys.argv[0] , " <model name> <sequence file> {<start_task> <end_task(exclusive)> | <end task(exclusive)>}")
     quit()

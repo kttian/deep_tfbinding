@@ -2,14 +2,7 @@
 from __future__ import print_function, division
 
 import logging
-logging.basicConfig(
-        format='%(asctime)s %(levelname)-5s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
-
 import sys
-logging.info(" ".join(sys.argv))
-
 import os
 import matplotlib as mpl
 mpl.use('Agg')
@@ -18,6 +11,14 @@ import numpy as np
 import modisco
 import theano
 import sys
+
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-5s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+logging.info(" ".join(sys.argv))
+
 
 logging.debug("Theano version:" + str(theano.__version__))
 logging.debug(sys.version)
@@ -65,7 +66,6 @@ from merge_overlaps import merge_overlaps
 #do_test()
 #quit()
 
-import sys
 if len(sys.argv) < 5 or len(sys.argv) > 6:
     print("Syntax: ", sys.argv[0] , " <score prefix> <sequence fa file> <sequence tsv> {<number of tasks> | <start task> <end task>}")
     quit()

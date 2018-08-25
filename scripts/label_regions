@@ -30,7 +30,7 @@ def load_chrom_sizes(chrom_sizes_fn):
     
 
 def make_windows(in_name, out_name, bin_size=200, stride=50,
-                 flank_size=400, expand = True, tasks = 0, skip_test=False):
+                 flank_size=400, expand = True, tasks = 0, skip_test=False, test_only=False):
     '''
         takes in intervals and expands interval lengths to be a multiple of stride (50)
         outputs a list of intervals, using sliding window of length bin_size (200)
@@ -61,6 +61,8 @@ def make_windows(in_name, out_name, bin_size=200, stride=50,
                 if skip_test :  # bg region is specified, use that and skip here
                     continue 
             else:
+                if test_only:
+                    continue
                 stride = orig_stride # restore original normal stride
 
             peak_length = end - start
@@ -212,7 +214,7 @@ def gen_intersects(pos_unzips, amb_unzips, tmp_regions):
     return pos_intersects, amb_intersects
 
 def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
-                                bin_size=200, flank_size=400, bg_stride=1000):
+                                bin_size=200, flank_size=400, bg_stride=1000, test_only=False):
     if regions == None:
         # if no background regions were specified, use the union of positives as regions
         tmp_regions = tmp_core_regions
@@ -223,7 +225,7 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
 
         tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
         # for background, 200 bin_size, 1000 stride, 400 flank will create tiled windows
-        make_windows(tmp_regions, tmp_bkg_regions, bin_size=bin_size, stride=bg_stride)     
+        make_windows(tmp_regions, tmp_bkg_regions, bin_size=bin_size, stride=bg_stride, test_only=test_only)     
 
         os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
 
@@ -236,7 +238,7 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
 def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives, 
                             ambiguous = None, regions = None,
                             bin_size=200, flank_size=400, stride=50, bg_stride=1000,
-                            n_jobs=1, genome='hg19',
+                            n_jobs=1, genome='hg19', test_only=False,
                             min_bin_distance_to_chrom_edge=5000):
     ''' 
     generate labels for multitask training
@@ -275,11 +277,11 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
         skip_test = False
         
     make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride, 
-                 skip_test=skip_test)     
+                 skip_test=skip_test, test_only=test_only)
 
     tmp_regions = handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
                                               bin_size=bin_size, flank_size=flank_size,
-                                              bg_stride=bg_stride)
+                                              bg_stride=bg_stride, test_only=test_only)
 
     logging.info("LABEL_REGIONS sort merge done")
 
@@ -337,6 +339,7 @@ def parse_args(args = None):
     parser.add_argument('--genome', type=str, default='hg19',
                         help='Genome name.\nDefault: hg19.'
                         '\nOptions: hg18, hg38, mm9, mm10, dm3, dm6.')
+    parser.add_argument('--test-only', type=bool, default=False, help="onlyprepare data for test and validation")
     #parser.add_argument('--logdir', type=os.path.abspath,
     #                    help='Logging directory', default=None, required=False)
     args = parser.parse_args(args)
@@ -359,7 +362,7 @@ def run_label_regions_from_args():
                                 positives, ambiguous=ambiguous, regions=args.background, 
                                 bin_size=args.bin_size, flank_size=args.flank_size, 
                                 stride=args.stride, bg_stride=args.bg_stride,
-                                genome=args.genome, n_jobs=args.n_jobs)
+                                genome=args.genome, n_jobs=args.n_jobs, test_only=args.test_only)
     else:
         raise RuntimeError("Must pass in positives, background, and task names!")
 

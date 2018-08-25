@@ -1,16 +1,18 @@
-
+DataDir = "./"
+header_file = DataDir + "headers.txt"
+valid_file  = DataDir + "splits/valid.tsv.gz"
 import gzip
 
-#with open('labels.txt', 'r') as f:
-with gzip.open('labels.txt.gz', 'r') as f:
+with open(header_file, 'r') as f:
     head = f.readline()
     head = head.split()[1:]
 #print(len(head))
 
 import pandas as pd
 
-df = pd.read_csv("splits/valid.txt.gz", sep='\t', index_col=0, header=None, 
-                 compression='gzip')
+#df = pd.read_csv(valid_file, sep='\t', index_col=0, header=None, compression='gzip')
+df0 = pd.read_csv(valid_file, sep='\t', index_col=None, header=None, compression='gzip')
+df = df0.iloc[:,3:]
 df.columns = head
 
 #print(df.head(2))
@@ -31,6 +33,10 @@ sums = counts_df.sum()
 # In[ ]:
 
 percent_df = counts_df / sums
+
+new_index = [ int(1), int(0), int(-1)]
+counts_df  = counts_df.reindex(new_index)
+percent_df = percent_df.reindex(new_index)
 
 #print (percent_df)
 
