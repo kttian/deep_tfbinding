@@ -11,6 +11,7 @@ import numpy as np
 import modisco
 import theano
 import sys
+import argparse
 
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
@@ -66,23 +67,30 @@ from merge_overlaps import merge_overlaps
 #do_test()
 #quit()
 
-if len(sys.argv) < 5 or len(sys.argv) > 6:
-    print("Syntax: ", sys.argv[0] , " <score prefix> <sequence fa file> <sequence tsv> {<number of tasks> | <start task> <end task>}")
-    quit()
+def parse_args(args = None):
+    parser = argparse.ArgumentParser('run_tfmodisco.py',
+                                     description='run tfmodisco',
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--scores', type=str, help="prefix for the hypothetical score files")
+    parser.add_argument('--fasta', type=str, help="fasta input")
+    parser.add_argument('--tsv', type=str, help="tsv input")
+    parser.add_argument('--start-task', type=int, default=0, help="start tast")
+    parser.add_argument('--end-task', type=int, default=5, help="end task")
+    parser.add_argument('--fdr', type=float, default=0.01, help="target FDR")
+    args = parser.parse_args(args)
+    return args
 
-score_prefix = sys.argv[1]                 # "./scores/hyp_scores_task_"
-input_name   = sys.argv[2]                 # subset.fa, sequences 
-input_tsv    = sys.argv[3]                 # subset.tsv
-if len(sys.argv) == 5:
-    start_task    = 0
-    end_task    = int(sys.argv[4])            # 
-else:
-    start_task    = int(sys.argv[4])            # 
-    end_task    = int(sys.argv[5])            # 
+args = parse_args()
 
+score_prefix = args.scores
+input_name   = args.fasta
+input_tsv    = args.tsv
+start_task   = args.start_task
+end_task     = args.end_task
+target_fdr   = args.fdr
 
-logging.debug("method file prefix is %s, input seq file is %s, input tsv is %s, start_task is %d end_task is %d", 
-              score_prefix, input_name, input_tsv, start_task, end_task)
+logging.debug("method file prefix is %s, input seq file is %s, input tsv is %s, start_task is %d end_task is %d, fdr is %f", 
+              score_prefix, input_name, input_tsv, start_task, end_task, target_fdr)
 
 #https://www.biostars.org/p/710/
 from itertools import groupby
@@ -153,80 +161,6 @@ for t in range(num_tasks):
         logging.debug("shape of hyp_score " + str(task_to_hyp_scores[task][0].shape))
         logging.debug("shape of score " + str(task_to_scores[task][0].shape))
 
-"""
-for i in range(num_tasks):
-    task = 'task'+str(i)
-    task_to_hyp_scores[task] = np.load(scores_loc[i])
-    logging.debug("shape of hyp_score", task_to_hyp_scores['task0'].shape)
-    task_to_scores[task]     = task_to_hyp_scores[task] * onehot_data
-    logging.debug("shape of score",     task_to_scores['task0'].shape)
-
-logging.debug(onehot_data[0][:5])
-logging.debug("hyp_scores")
-logging.debug(task_to_hyp_scores["task0"][0][:5])
-logging.debug("scores")
-logging.debug(task_to_scores["task0"][0][:5])
-
-# for hdf5 input
-f = h5py.File(score_file,"r")
-tasks = f["contrib_scores"].keys()
-logging.debug("tasks are: ", tasks)
-
-for task in tasks:
-    #Note that the sequences can be of variable lengths;
-    #in this example they all have the same length (200bp) but that is
-    #not necessary.
-    task_to_scores[task] = [np.array(x) for x in f['contrib_scores'][task][:]]
-    task_to_hyp_scores[task] = [np.array(x) for x in f['hyp_contrib_scores'][task][:]]
-"""
-
-# ## Run TF-MoDISco
-# 
-# TF-MoDISco first identifies seqlets, then splits the seqlets into
-# "metaclusters" according to their pattern of activity across all the tasks,
-# and then performs clustering within each task. Since there is just one task,
-# there are only 2 possible metaclusters: +1 for the task and -1 for the task.
-# The -1 metacluster does not turn up any motifs after noise filtering, but
-# the +1 metacluster produces two motifs.
-# 
-# To demonstrate customization, the code below has slight modifications from
-# default settings in the following ways: - Because the TAL and GATA motifs
-# are relatively short compared to something like CTCF, it uses a sliding
-# window size of 15 (rather than the default of 21) and flanks of 5 (rather
-# than the default of 10). The sliding window size and flanks should be
-# adjusted according to the expected length of the core motif and its flanks.
-# If the window size or flank sizes are too long, you risk picking up more
-# noise.  - During the seqlet clustering, motifs are trimmed to the central
-# `trim_to_window_size` bp with the highest importance. `trim_to_window_size`
-# is set to 10 rather than the default of 30. After the trimming is done, the
-# seqlet is expanded on either side by `initial_flank_to_add`. This is set to
-# 3 rather than the default of 10.  - The `final_min_cluster_size` is set to
-# 60 rather than the default of 30. This is used to filter out small clusters
-# with relatively weak support (in this case, fewer than 50 seqlets).  - It
-# uses kmers of length 5 with 1 gap and no mismatches to compute the "quick
-# and dirty" affinity matrix across all seqlets. The "quick and dirty"
-# affinity matrix is used both for noise filtering and as a first pass to
-# speed up computation of the continuous jaccard affinity matrix (the latter
-# affinities are only computed between seqlets deemed to be close together by
-# the "quick and dirty" method). I made the kmer length smaller to keep memory
-# usage on the GPU down when testing on my macbook pro. The default is to use
-# kmers of length 8 with 3 gaps and 2 mismatches, and this works fine on more
-# modern GPUs than the one in my 4-year-old macbook.  - `target_seqlet_fdr`
-# controls the noisiness of the seqelts. For a particular task, "significant"
-# seqlets are identified by fitting a laplace distribution to the left and
-# right tails of the values obtained after smoothing the importance scores
-# with a window of size `sliding_window_size`. This laplace distribution is
-# assumed to represent the null distribution of random seqlet importance
-# scores. A threshold is then identified such that the false discovery rate
-# (computed as the ratio of the expected number of seqlets according to the
-# laplace null to the observed number of seqlets above the threshold) is less
-# that `target_seqlet_fdr`. This is what is meant by "Est. FDR" printed in the
-# logs below. If "Est. FDR" is above the target threshold, that means there
-# was no significant increase in the number of seqlets relative to the null.
-# You'll see below that "Est. FDR" for negative scores for any task is above
-# this threshold, which fits with the simulation because there were no
-# "negative set" motifs.
-
 import h5py
 import numpy as np
 import modisco
@@ -266,7 +200,7 @@ factory = modisco.tfmodisco_workflow.seqlets_to_patterns.TfModiscoSeqletsToPatte
 tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
                             sliding_window_size=21,
                             flank_size=10,
-                            target_seqlet_fdr=0.01,
+                            target_seqlet_fdr=target_fdr,
                             seqlets_to_patterns_factory=factory
                         )(
                             task_names=task_names,

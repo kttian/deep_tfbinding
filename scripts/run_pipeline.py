@@ -31,6 +31,7 @@ def parse_args(args = None):
     parser.add_argument('--end', type=int, default=100, help="end stage")
     parser.add_argument('--start-task', type=int, default=0, help="start tast")
     parser.add_argument('--end-task', type=int, default=5, help="end task")
+    parser.add_argument('--fdr', type=float, default=0.01, help="target FDR")
     args = parser.parse_args(args)
     return args
 
@@ -82,7 +83,7 @@ if start <= 20 and end > 20:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --no-bg True "
     if num_tasks >1 :
         cmd += " --hdf5 True " 
-    cmd += " > logs/pre_prepare.log 2>&1"
+    cmd += " > logs/pre_prepare.txt 2>&1"
     logging.info(cmd)
     os.system(cmd)
 
@@ -94,7 +95,7 @@ if start <= 20 and end > 20:
 #-------------------------------
 if start <= 30 and end > 30:
     if num_tasks > 1:
-        rc = os.system("momma_dragonn_train > logs/pre_train.log 2>&1")
+        rc = os.system("momma_dragonn_train > logs/pre_train.txt 2>&1")
         print("momma_dragonn_train returned ", rc)
         if rc != 0:
             sys.exit()
@@ -117,14 +118,14 @@ if start <= 30 and end > 30:
 #1 prepare_data with background for the main training
 #-------------------------------
 if start <= 40 and end > 40:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --hdf5 True > logs/prepare.log 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --hdf5 True > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
 
 #2 train to continue from pre-trained data
 #-------------------------------
 if start <= 50 and end > 50:
-    rc = os.system("momma_dragonn_train > logs/train.log 2>&1")
+    rc = os.system("momma_dragonn_train > logs/train.txt 2>&1")
     print("momma_dragonn_train returned ", rc)
     if rc != 0:
         sys.exit()
@@ -146,25 +147,26 @@ if start <= 50 and end > 50:
 
 #-------------------------------
 if start <= 60 and end > 60:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --test-only True --bg-stride=50 > logs/test.log 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
     os.system(cmd)
-    cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.log 2>&1"
+    cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.txt 2>&1"
     os.system(cmd)
-    cmd = "python $TFNET_ROOT/scripts/analyze_data.py"
-    os.system(cmd)
+    os.system("python $TFNET_ROOT/scripts/analyze_data.py > logs/analyze.txt")
+    os.system("mv counts.tsv model_files")
+    os.system("paste model_files/counts.tsv model_files/record_1_Tsv.tsv > TF.tsv")
     os.system("cp -rp model_files finetune")
 
     print("step 60 testing done")
 #3 deeplift
 #-------------------------------
 if start <= 70 and end > 70:
-    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + str(num_tasks) + " > logs/deeplift.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + str(num_tasks) + " > logs/deeplift.txt 2>&1")
     print("step 70 deeplift done")
 
 #4 modisco
 #-------------------------------
 if start <= 80 and end > 80:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py scores/hyp_scores_task_ subset_nobg.fa subset_nobg.tsv " + str(num_tasks) + " > logs/modisco.log 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta subset_nobg.fa --tsv subset_nobg.tsv --end-task " + str(num_tasks) + " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
 
 """
 '''
