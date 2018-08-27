@@ -64,9 +64,6 @@ def seq_to_one_hot_fill_in_array(zeros_array, sequence, one_hot_axis):
 from merge_overlaps import MergeOverlaps
 from merge_overlaps import merge_overlaps
 
-#do_test()
-#quit()
-
 def parse_args(args = None):
     parser = argparse.ArgumentParser('run_tfmodisco.py',
                                      description='run tfmodisco',

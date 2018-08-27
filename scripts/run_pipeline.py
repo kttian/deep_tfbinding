@@ -87,8 +87,8 @@ if start <= 20 and end > 20:
     logging.info(cmd)
     os.system(cmd)
 
-    os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > subset_nobg.tsv")
-    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed subset_nobg.tsv -fo subset_nobg.fa")
+    os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > interpret.tsv")
+    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
 
     print("step 20 prepare for pre_train done")
 
@@ -160,13 +160,13 @@ if start <= 60 and end > 60:
 #3 deeplift
 #-------------------------------
 if start <= 70 and end > 70:
-    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ subset_nobg.fa " + str(num_tasks) + " > logs/deeplift.txt 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_deeplift.py model_files/record_1_ interpret.fa " + str(num_tasks) + " > logs/deeplift.txt 2>&1")
     print("step 70 deeplift done")
 
 #4 modisco
 #-------------------------------
 if start <= 80 and end > 80:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta subset_nobg.fa --tsv subset_nobg.tsv --end-task " + str(num_tasks) + " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta interpret.fa --tsv interpret.tsv --end-task " + str(num_tasks) + " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
 
 """
 '''
