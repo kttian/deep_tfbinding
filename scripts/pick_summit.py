@@ -2,14 +2,16 @@
 
 
 import logging
+
+import sys
+import os
+import argparse
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S')
 
-
-import sys
-import os
 logging.info(" ".join(sys.argv))
 
 
@@ -31,15 +33,6 @@ genomeDir  = ROOT_DIR + "/genome/"
 resultsDir = "./"
 logDir     = resultsDir + "log/"
 #tmpDir     = "./tmp/"
-
-import sys
-if len(sys.argv) < 2:
-    print("Syntax: ", sys.argv[0] , " <TF name> <cell-lines>")
-    quit()
-
-tfs = sys.argv[1]
-
-cell_lines = sys.argv[2:]
 
 # must run from resultsDir
 
@@ -120,13 +113,35 @@ def make_temp_directory():
     finally:
         shutil.rmtree(temp_dir)
 
+
+def parse_args(args = None):
+    parser = argparse.ArgumentParser('run_pipeline.py',
+                                     description='run pipe line for TF binding training',
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--tfs', type=str, help="List of transcription factors, separated by ','")
+    parser.add_argument('--cells', type=str, default=None, help="List of cell-lines, separated by ','")
+    parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
+    args = parser.parse_args(args)
+    return args
+
 if __name__ == '__main__':
+
+    args = parse_args()
+    tfs = args.tfs
+    cell_lines = args.cells
+    if args.data_dir != None:
+        dataDir = args.data_dir + "/"
+        sys.stderr.write("dataDir=" + dataDir + ", tfs=" + tfs + ", cells=" + str(cell_lines) + "\n")
 
     with make_temp_directory() as temp_dir:
         global tmpDir
         tmpDir = temp_dir + "/"
 
         tfs = tfs.split(',')
-        cell_set = set(cell_lines)
+        if cell_lines == '-' or cell_lines == None:
+            cell_set = None
+        else:
+            cell_lines = cell_lines.split(',')
+            cell_set = set(cell_lines)
         process_tf(tfs, cell_set)
 

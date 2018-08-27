@@ -32,6 +32,7 @@ def parse_args(args = None):
     parser.add_argument('--start-task', type=int, default=0, help="start tast")
     parser.add_argument('--end-task', type=int, default=5, help="end task")
     parser.add_argument('--fdr', type=float, default=0.01, help="target FDR")
+    parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     args = parser.parse_args(args)
     return args
 
@@ -82,12 +83,21 @@ if start <= 10:
 if start <= 20 and end > 20:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --no-bg True "
     if num_tasks >1 :
-        cmd += " --hdf5 True " 
+        cmd += " --hdf5 True " # for single task, there is no need to pre-train, but we need the tsv for interpretation
+    if args.data_dir != None:
+        cmd += " --data-dir " + args.data_dir + " "
     cmd += " > logs/pre_prepare.txt 2>&1"
     logging.info(cmd)
     os.system(cmd)
 
-    os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > interpret.tsv")
+    #os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > interpret.tsv")
+
+    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + " --cells " + cell_lines 
+    if args.data_dir != None:
+        cmd += " --data-dir " + args.data_dir + " "
+    cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
+    os.system(cmd)
+
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
 
     print("step 20 prepare for pre_train done")

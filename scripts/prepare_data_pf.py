@@ -221,12 +221,17 @@ def parse_args(args = None):
     parser.add_argument('--bg-stride', type=int, default=-1, help="Stride in background regions")
     parser.add_argument('--test-only', type=bool, default=False, help="only prepare data for test and validation")
     parser.add_argument('--hdf5', type=bool, default=False, help="produce hdf5 as well")
+    parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     args = parser.parse_args(args)
     return args
 
 if __name__ == '__main__':
 
     args = parse_args()
+
+    if args.data_dir != None:
+        dataDir = args.data_dir + "/"
+        logging.info("dataDir="+dataDir)
 
     with make_temp_directory() as temp_dir:
         global tmpDir
