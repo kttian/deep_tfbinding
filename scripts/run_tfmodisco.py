@@ -133,6 +133,7 @@ for i in range(start_task , end_task):
 # scores & their one-hot encodings
 
 merged_seq_list        = []
+merged_tsv_list        = []
 merged_onehot_list     = []
 num_tasks = end_task - start_task
 for t in range(num_tasks):
@@ -142,7 +143,8 @@ for t in range(num_tasks):
     task = task_names[t]
     hyp_scores_all = np.load(scores_loc[t])
     merge_overlaps(input_tsv, hyp_scores_all, merged_hyp_scores_list, fasta_sequences,
-                   merged_seq_list = merged_seq_list if t==0 else None)
+                   merged_seq_list = merged_seq_list if t==0 else None,
+                   merged_tsv_list = merged_tsv_list if t==0 else None)
 
     for i in range(len(merged_hyp_scores_list)):
         onehot_seq = one_hot_encode_along_channel_axis(merged_seq_list[i])
@@ -157,6 +159,13 @@ for t in range(num_tasks):
     if t == 0:
         logging.debug("shape of hyp_score " + str(task_to_hyp_scores[task][0].shape))
         logging.debug("shape of score " + str(task_to_scores[task][0].shape))
+
+#save the scores and tsv
+np.savez("merged_hyp_scores.npz", *merged_hyp_scores_list)
+with open("merged_overlaps.tsv", 'w') as fh:
+    for tsv in merged_tsv_list:
+        fields = [str(f) for f in tsv]
+        fh.write("\t".join(fields) + "\n")
 
 import h5py
 import numpy as np

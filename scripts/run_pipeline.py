@@ -33,6 +33,7 @@ def parse_args(args = None):
     parser.add_argument('--end-task', type=int, default=5, help="end task")
     parser.add_argument('--fdr', type=float, default=0.01, help="target FDR")
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
+    parser.add_argument('--stride', type=int, default=10, help="stride")
     args = parser.parse_args(args)
     return args
 
@@ -71,6 +72,11 @@ os.system("mkdir -p logs")
 
 logging.debug("tf=%s, num_tasks=%d start=%d end=%d" % (tfs, num_tasks, start, end))
 
+if args.data_dir != None:
+    data_dir_str = " --data-dir " + args.data_dir + " "
+else:
+    data_dir_str = ""
+
 #-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
@@ -81,24 +87,14 @@ if start <= 10:
 
 #-------------------------------
 if start <= 20 and end > 20:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --no-bg True "
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + data_dir_str + " --no-bg True --stride " + str(args.stride)
     if num_tasks >1 :
         cmd += " --hdf5 True " # for single task, there is no need to pre-train, but we need the tsv for interpretation
-    if args.data_dir != None:
-        cmd += " --data-dir " + args.data_dir + " "
     cmd += " > logs/pre_prepare.txt 2>&1"
     logging.info(cmd)
     os.system(cmd)
 
     #os.system("gunzip -c splits/train.tsv.gz splits/valid.tsv.gz | sort -k1,1 -k2,2n > interpret.tsv")
-
-    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + " --cells " + cell_lines 
-    if args.data_dir != None:
-        cmd += " --data-dir " + args.data_dir + " "
-    cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
-    os.system(cmd)
-
-    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
 
     print("step 20 prepare for pre_train done")
 
@@ -128,7 +124,8 @@ if start <= 30 and end > 30:
 #1 prepare_data with background for the main training
 #-------------------------------
 if start <= 40 and end > 40:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --hdf5 True > logs/prepare.txt 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + data_dir_str + " --stride " + str(args.stride)
+    cmd += " --hdf5 True > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
 
@@ -156,8 +153,18 @@ if start <= 50 and end > 50:
     print("step 50 training done")
 
 #-------------------------------
+if start <= 55 and end > 55:
+    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + " --cells " + cell_lines 
+    if args.data_dir != None:
+        cmd += " --data-dir " + args.data_dir + " "
+    cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
+    os.system(cmd)
+
+    os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
+
+#-------------------------------
 if start <= 60 and end > 60:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + data_dir_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
     os.system(cmd)
     cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.txt 2>&1"
     os.system(cmd)
@@ -167,6 +174,8 @@ if start <= 60 and end > 60:
     os.system("cp -rp model_files finetune")
 
     print("step 60 testing done")
+
+
 #3 deeplift
 #-------------------------------
 if start <= 70 and end > 70:

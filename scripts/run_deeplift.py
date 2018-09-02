@@ -240,7 +240,6 @@ contribs_many_refs_func = get_shuffle_seq_ref_function(
 # In[9]:
 
 from deeplift.util import get_hypothetical_contribs_func_onehot
-import os
 
 multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
                                                               target_layer_idx=-2)
@@ -332,7 +331,7 @@ for task_idx in all_tasks:
     # 0 at each position. I suspect the normalization improves TF-MoDISco
     # results, but I haven't rigorously evaluated this.
 
-    #hyp_scores = (hyp_scores - np.mean(hyp_scores, axis=-1)[:,:,None])
+    hyp_scores = (hyp_scores - np.mean(hyp_scores, axis=-1)[:,:,None])
 
     # save to files
     #filename = "contrib_scores_task_" + str(task_idx) + ".npy"

@@ -128,13 +128,13 @@ def process_tf(tfs, cell_set=None):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + " --stride 10"
-
-    if args.no_bg == False:
-        cmd += background_str
+          " --genome hg19 --prefix label " + " --stride " + str(args.stride)
 
     if args.bg_stride >= 0:
         cmd += " --bg-stride " + str(args.bg_stride) + " "
+
+    if args.no_bg == False:
+        cmd += background_str
 
     if args.test_only:
         cmd += " --test-only True "
@@ -222,6 +222,7 @@ def parse_args(args = None):
     parser.add_argument('--test-only', type=bool, default=False, help="only prepare data for test and validation")
     parser.add_argument('--hdf5', type=bool, default=False, help="produce hdf5 as well")
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
+    parser.add_argument('--stride', type=int, default=10, help="stride in positive regions")
     args = parser.parse_args(args)
     return args
 
