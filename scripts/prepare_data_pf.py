@@ -44,16 +44,21 @@ use_hdf5=False
 # loop through the TFs
 #for tf in ['ZNF143']:
 
-def process_tf(tfs, cell_set=None):
+def process_tf(tfs, cell_set=None, expr=None):
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep1.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
 
+    if expr == None:
+        expr_str = ""
+    else:
+        expr_str = expr
+
     import glob
     tf_files = []
     for tf in tfs:
-        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-*-optimal*"))
+        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-" + expr_str + "*-optimal*"))
 
     count = 0
     task_list = []
@@ -223,6 +228,7 @@ def parse_args(args = None):
     parser.add_argument('--hdf5', type=bool, default=False, help="produce hdf5 as well")
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     parser.add_argument('--stride', type=int, default=10, help="stride in positive regions")
+    parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
     args = parser.parse_args(args)
     return args
 
@@ -245,5 +251,5 @@ if __name__ == '__main__':
             cell_lines = args.cells.split(',')
             cell_set = set(cell_lines)
 
-        process_tf(tfs, cell_set)
+        process_tf(tfs, cell_set, args.expr)
 
