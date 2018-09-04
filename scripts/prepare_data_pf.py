@@ -245,7 +245,7 @@ if __name__ == '__main__':
         tmpDir = temp_dir + "/"
 
         tfs = args.tfs.split(',')
-        if args.cells == '-' :
+        if args.cells == '-' or args.cells == None:
             cell_set = None
         else:
             cell_lines = args.cells.split(',')

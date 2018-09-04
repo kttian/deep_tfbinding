@@ -83,6 +83,10 @@ if args.expr != None:
 else:
     expr_str = ""
 
+if args.cells != None:
+    cell_str = " --cells " + args.cells + " "
+else:
+    cell_str = ""
 #-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
@@ -93,7 +97,7 @@ if start <= 10:
 
 #-------------------------------
 if start <= 20 and end > 20:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + expr_str + data_dir_str + " --no-bg True --stride " + str(args.stride)
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --no-bg True --stride " + str(args.stride)
     if num_tasks >1 :
         cmd += " --hdf5 True " # for single task, there is no need to pre-train, but we need the tsv for interpretation
     cmd += " > logs/pre_prepare.txt 2>&1"
@@ -130,7 +134,7 @@ if start <= 30 and end > 30:
 #1 prepare_data with background for the main training
 #-------------------------------
 if start <= 40 and end > 40:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + expr_str + data_dir_str + " --stride " + str(args.stride)
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --stride " + str(args.stride)
     cmd += " --hdf5 True > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
@@ -160,9 +164,7 @@ if start <= 50 and end > 50:
 
 #-------------------------------
 if start <= 55 and end > 55:
-    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + " --cells " + cell_lines 
-    if args.data_dir != None:
-        cmd += " --data-dir " + args.data_dir + " "
+    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + cell_str + data_dir_str
     cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
     os.system(cmd)
 
@@ -170,7 +172,7 @@ if start <= 55 and end > 55:
 
 #-------------------------------
 if start <= 60 and end > 60:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + " --cells " + cell_lines + expr_str + data_dir_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
     os.system(cmd)
     cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.txt 2>&1"
     os.system(cmd)
@@ -191,7 +193,8 @@ if start <= 70 and end > 70:
 #4 modisco
 #-------------------------------
 if start <= 80 and end > 80:
-    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta interpret.fa --tsv interpret.tsv --end-task " + str(num_tasks) + " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
+    os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta interpret.fa --tsv interpret.tsv " + \
+        " --start-task " + str(args.start_task) + " --end-task " + str(args.end_task) +  " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
 
 """
 '''

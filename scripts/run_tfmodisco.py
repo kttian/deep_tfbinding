@@ -136,36 +136,38 @@ merged_seq_list        = []
 merged_tsv_list        = []
 merged_onehot_list     = []
 num_tasks = end_task - start_task
-for t in range(num_tasks):
+for t in range(start_task, end_task):
     merged_hyp_scores_list     = []
     merged_contrib_scores_list = []
 
-    task = task_names[t]
-    hyp_scores_all = np.load(scores_loc[t])
+    task = task_names[t - start_task]
+    hyp_scores_all = np.load(scores_loc[t - start_task])
     merge_overlaps(input_tsv, hyp_scores_all, merged_hyp_scores_list, fasta_sequences,
-                   merged_seq_list = merged_seq_list if t==0 else None,
-                   merged_tsv_list = merged_tsv_list if t==0 else None)
+                   merged_seq_list = merged_seq_list if t==start_task else None,
+                   merged_tsv_list = merged_tsv_list if t==start_task else None)
 
     for i in range(len(merged_hyp_scores_list)):
         onehot_seq = one_hot_encode_along_channel_axis(merged_seq_list[i])
         contrib_scores = merged_hyp_scores_list[i] * onehot_seq
         merged_contrib_scores_list.append(contrib_scores)
-        if t == 0:
+        if t == start_task:
             merged_onehot_list.append(onehot_seq)
 
     task_to_hyp_scores[task] = merged_hyp_scores_list
     task_to_scores[task]     = merged_contrib_scores_list
 
-    if t == 0:
+    if t == start_task:
         logging.debug("shape of hyp_score " + str(task_to_hyp_scores[task][0].shape))
         logging.debug("shape of score " + str(task_to_scores[task][0].shape))
 
 #save the scores and tsv
+'''
 np.savez("merged_hyp_scores.npz", *merged_hyp_scores_list)
 with open("merged_overlaps.tsv", 'w') as fh:
     for tsv in merged_tsv_list:
         fields = [str(f) for f in tsv]
         fh.write("\t".join(fields) + "\n")
+'''
 
 import h5py
 import numpy as np
