@@ -13,6 +13,12 @@ import theano
 import sys
 import argparse
 
+def debug_signal_handler(signal, frame):
+    import pdb
+    pdb.set_trace()
+import signal
+signal.signal(signal.SIGINT, debug_signal_handler)
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
