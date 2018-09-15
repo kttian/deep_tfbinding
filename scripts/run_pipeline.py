@@ -35,6 +35,7 @@ def parse_args(args = None):
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     parser.add_argument('--stride', type=int, default=10, help="stride")
     parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
+    parser.add_argument('--pf', type=bool, default=False, help="Use pfasta")
     args = parser.parse_args(args)
     return args
 
@@ -87,6 +88,12 @@ if args.cells != None:
     cell_str = " --cells " + args.cells + " "
 else:
     cell_str = ""
+
+if args.pf :
+    hdf5_str = ""
+else:
+    hdf5_str = " --hdf5 True "
+
 #-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
@@ -99,7 +106,7 @@ if start <= 10:
 if start <= 20 and end > 20:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --no-bg True --stride " + str(args.stride)
     if num_tasks >1 :
-        cmd += " --hdf5 True " # for single task, there is no need to pre-train, but we need the tsv for interpretation
+        cmd += hdf5_str # for single task, there is no need to pre-train, but we need the tsv for interpretation
     cmd += " > logs/pre_prepare.txt 2>&1"
     logging.info(cmd)
     os.system(cmd)
@@ -122,7 +129,7 @@ if start <= 30 and end > 30:
         os.chdir("..")
         os.system("mkdir -p pretrain")
         os.system("mv model_files pretrain")
-        os.system("mv *.hdf5 pretrain")
+        os.system("mv -f *.hdf5 pretrain")
         os.system("mv splits pretrain")
         os.system("mv runs_perf-metric-auROC.db pretrain/")
         os.system("mv label* pretrain/")
@@ -135,7 +142,7 @@ if start <= 30 and end > 30:
 #-------------------------------
 if start <= 40 and end > 40:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --stride " + str(args.stride)
-    cmd += " --hdf5 True > logs/prepare.txt 2>&1"
+    cmd += hdf5_str " > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
 
@@ -154,7 +161,7 @@ if start <= 50 and end > 50:
 
     os.system("mkdir -p finetune")
     os.system("cp -rp model_files finetune")
-    os.system("mv *.hdf5 finetune")
+    os.system("mv -f *.hdf5 finetune")
     os.system("mv splits finetune")
     os.system("mv runs_perf-metric-auROC.db finetune/")
     os.system("mv label* finetune/")

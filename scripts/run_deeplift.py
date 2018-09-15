@@ -14,6 +14,19 @@ import os
 from sys import getsizeof
 from pympler.asizeof import asizeof
 
+from itertools import groupby
+import deeplift
+from keras.models import model_from_json
+
+import deeplift.conversion.kerasapi_conversion as kc
+from collections import OrderedDict
+
+from deeplift.util import get_shuffle_seq_ref_function
+from deeplift.dinuc_shuffle import dinuc_shuffle #function to do a dinucleotide shuffle
+
+from deeplift.util import get_hypothetical_contribs_func_onehot
+
+
 logging.basicConfig(
         format='%(asctime)s %(levelname)-5s %(message)s',
         level=logging.DEBUG,
@@ -110,7 +123,6 @@ logging.info("loading models from " + keras_model_json + " " + keras_model_weigh
 logging.info("input sequence file is " + input_file + ", range of tasks are " + str(start_task)+":"+str(end_task))
 
 #https://www.biostars.org/p/710/
-from itertools import groupby
 def fasta_iter(fasta_name):
     """
         given a fasta file, yield tuples of (header, sequence)
@@ -136,8 +148,6 @@ log_mem_usage(0, "memory check location 2")
 
 # In[4]:
 
-import deeplift
-from keras.models import model_from_json
 
 #load the keras model
 keras_model = model_from_json(open(keras_model_json).read())
@@ -154,8 +164,6 @@ keras_model.load_weights(keras_model_weights)
 
 # In[5]:
 
-import deeplift.conversion.kerasapi_conversion as kc
-from collections import OrderedDict
 
 deeplift_model = kc.convert_model_from_saved_files(
                      h5_file=keras_model_weights,
@@ -200,8 +208,6 @@ predictions = converted_model_predictions
 
 # In[7]:
 
-from deeplift.util import get_shuffle_seq_ref_function
-from deeplift.dinuc_shuffle import dinuc_shuffle #function to do a dinucleotide shuffle
 
 contribs_func = deeplift_model.get_target_contribs_func(find_scores_layer_idx=0,
                                                         target_layer_idx=-2)
@@ -239,7 +245,6 @@ contribs_many_refs_func = get_shuffle_seq_ref_function(
 
 # In[9]:
 
-from deeplift.util import get_hypothetical_contribs_func_onehot
 
 multipliers_func = deeplift_model.get_target_multipliers_func(find_scores_layer_idx=0,
                                                               target_layer_idx=-2)
@@ -331,7 +336,7 @@ for task_idx in all_tasks:
     # 0 at each position. I suspect the normalization improves TF-MoDISco
     # results, but I haven't rigorously evaluated this.
 
-    hyp_scores = (hyp_scores - np.mean(hyp_scores, axis=-1)[:,:,None])
+    #hyp_scores = (hyp_scores - np.mean(hyp_scores, axis=-1)[:,:,None])
 
     # save to files
     #filename = "contrib_scores_task_" + str(task_idx) + ".npy"
