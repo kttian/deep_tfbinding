@@ -59,17 +59,22 @@ def process_files(in_names, bin_size):
                 sys.stdout.write(chrom + "\t" + str(left) + "\t" + str(left + bin_size) + "\n")
     
         
-def process_tf(tfs, cell_set):
+def process_tf(tfs, cell_set=None, expr=None):
 
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep1.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep2.narrowPeak.gz
 
+    if expr == None:
+        expr_str = ""
+    else:
+        expr_str = expr
+
     import glob
     tf_files = []
     for tf in tfs:
-        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-*-optimal*"))
+        tf_files.extend(glob.glob(dataDir + "*-" + tf + "-human-" + expr_str + "*-optimal*"))
 
     count = 0
     task_list = []
@@ -120,6 +125,7 @@ def parse_args(args = None):
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--tfs', type=str, help="List of transcription factors, separated by ','")
     parser.add_argument('--cells', type=str, default=None, help="List of cell-lines, separated by ','")
+    parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     args = parser.parse_args(args)
     return args
@@ -143,5 +149,5 @@ if __name__ == '__main__':
         else:
             cell_lines = cell_lines.split(',')
             cell_set = set(cell_lines)
-        process_tf(tfs, cell_set)
+        process_tf(tfs, cell_set, args.expr)
 

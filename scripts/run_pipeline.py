@@ -142,7 +142,7 @@ if start <= 30 and end > 30:
 #-------------------------------
 if start <= 40 and end > 40:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --stride " + str(args.stride)
-    cmd += hdf5_str " > logs/prepare.txt 2>&1"
+    cmd += hdf5_str + " > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
 
@@ -154,6 +154,7 @@ if start <= 50 and end > 50:
     if rc != 0:
         sys.exit()
 
+if start <= 52 and end > 52:
     os.chdir("model_files")
     os.system("cp record_1_*Json.json  record_1_Json.json")
     os.system("cp record_1_*Weights.h5 record_1_Weights.h5")
@@ -171,7 +172,7 @@ if start <= 50 and end > 50:
 
 #-------------------------------
 if start <= 55 and end > 55:
-    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + cell_str + data_dir_str
+    cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + cell_str + expr_str + data_dir_str
     cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
     os.system(cmd)
 
