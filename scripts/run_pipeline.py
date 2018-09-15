@@ -36,6 +36,7 @@ def parse_args(args = None):
     parser.add_argument('--stride', type=int, default=10, help="stride")
     parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
     parser.add_argument('--pf', type=bool, default=False, help="Use pfasta")
+    parser.add_argument('--min-seqlets', type=int, default=-1, help="min seqlets")
     args = parser.parse_args(args)
     return args
 
@@ -93,6 +94,11 @@ if args.pf :
     hdf5_str = ""
 else:
     hdf5_str = " --hdf5 True "
+
+if args.min_seqlets < 0 :
+    min_seqlets_str = ""
+else:
+    min_seqlets_str = " --min-seqlets " + str(args.min_seqlets) + " "
 
 #-------------------------------
 if start <= 10:
@@ -202,7 +208,7 @@ if start <= 70 and end > 70:
 #-------------------------------
 if start <= 80 and end > 80:
     os.system("python $TFNET_ROOT/scripts/run_tfmodisco.py --scores scores/hyp_scores_task_ --fasta interpret.fa --tsv interpret.tsv " + \
-        " --start-task " + str(args.start_task) + " --end-task " + str(args.end_task) +  " --fdr " + str(args.fdr) + " > logs/modisco.txt 2>&1")
+        " --start-task " + str(args.start_task) + " --end-task " + str(args.end_task) +  " --fdr " + str(args.fdr) +  min_seqlets_str + " > logs/modisco.txt 2>&1")
 
 """
 '''

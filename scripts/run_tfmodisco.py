@@ -80,6 +80,7 @@ def parse_args(args = None):
     parser.add_argument('--start-task', type=int, default=0, help="start tast")
     parser.add_argument('--end-task', type=int, default=5, help="end task")
     parser.add_argument('--fdr', type=float, default=0.01, help="target FDR")
+    parser.add_argument('--min-seqlets', type=int, default=1000, help="min seqlets")
     args = parser.parse_args(args)
     return args
 
@@ -215,7 +216,8 @@ tfmodisco_results = modisco.tfmodisco_workflow.workflow.TfModiscoWorkflow(
                             sliding_window_size=21,
                             flank_size=10,
                             target_seqlet_fdr=target_fdr,
-                            seqlets_to_patterns_factory=factory
+                            seqlets_to_patterns_factory=factory,
+                            min_seqlets_per_task=args.min_seqlets
                         )(
                             task_names=task_names,
                             contrib_scores        = task_to_scores,
