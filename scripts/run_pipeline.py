@@ -92,8 +92,10 @@ else:
 
 if args.pf :
     hdf5_str = ""
+    hdf5_suffix = ""
 else:
     hdf5_str = " --hdf5 True "
+    hdf5_suffix = ".h5"
 
 if args.min_seqlets < 0 :
     min_seqlets_str = ""
@@ -103,10 +105,14 @@ else:
 #-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
-    os.system("cp -r " + templateDir + "/config .")
+    os.system("cp -r " + templateDir + "/config" + hdf5_suffix + " .")
+    if hdf5_suffix != "":
+        os.system("mv config" + hdf5_suffix + " config")
     os.system("ln -s " + templateDir + "/make_hdf5_yaml .")
-    os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml config/hyperparameter_configs_list.yaml")
-    sys.exit()
+    #os.system("cp -f config/hyperparameter_configs_list_for_pretrain.yaml config/hyperparameter_configs_list.yaml")
+    os.system("rm config/hyperparameter_configs_list.yaml")
+    os.system("cat config/hyperparameter_configs_list_for_pretrain.yaml | sed -e 's/_MESSAGE_/" + tfs + "/g; s/_OUT_DIM_/" + str(num_tasks) + "/g' > config/hyperparameter_configs_list.yaml")
+    #sys.exit()
 
 #-------------------------------
 if start <= 20 and end > 20:
@@ -141,7 +147,7 @@ if start <= 30 and end > 30:
         os.system("mv label* pretrain/")
         os.system("mv _tmp_* pretrain/")
 
-        os.system("cp -f config/hyperparameter_configs_list_for_finetune.yaml config/hyperparameter_configs_list.yaml")
+        os.system("cat config/hyperparameter_configs_list_for_finetune.yaml | sed -e 's/_MESSAGE_/" + tfs + "/g; s/_OUT_DIM_/" + str(num_tasks) + "/g' > config/hyperparameter_configs_list.yaml")
         print("step 30 pre_train done")
 
 #1 prepare_data with background for the main training
