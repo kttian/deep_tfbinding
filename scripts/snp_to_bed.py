@@ -14,7 +14,7 @@ def proc_snp(in_fh, out_fh, bin_size):
         pos   = int(fields[1])
         start = int(pos - int((bin_size)/2))
         end   = start + bin_size
-        assert(pos == int((start + end)/2)
+        assert pos == int((start + end)/2)
         out_fh.write(chrom + "\t" + str(start) + "\t" + str(end) + "\t" + line)
 
 #in_fn  = sys.argv[1]
