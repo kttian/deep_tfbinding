@@ -12,8 +12,9 @@ def proc_snp(in_fh, out_fh, bin_size):
         fields = line.split('\t')
         chrom = fields[0]
         pos   = int(fields[1])
-        start = int(pos - int((bin_size-1)/2))
+        start = int(pos - int((bin_size)/2))
         end   = start + bin_size
+        assert(pos == int((start + end)/2)
         out_fh.write(chrom + "\t" + str(start) + "\t" + str(end) + "\t" + line)
 
 #in_fn  = sys.argv[1]
@@ -21,7 +22,7 @@ def proc_snp(in_fh, out_fh, bin_size):
 #with open(in_fn, 'r') as in_fh, open(out_fn, 'w') as out_fh:
 
 if len(sys.argv) == 1:
-    bin_size = 41
+    bin_size = 1000
 elif len(sys.argv) == 2:
     bin_size = int(sys.argv[1])
 else:
