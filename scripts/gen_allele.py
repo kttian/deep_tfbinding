@@ -30,7 +30,7 @@ def gen_allele(input_name):
         if ref not in letters:
             allele_list = ['N', 'N', 'N']
         else:
-            allele_list = letters.difference({ref})
+            allele_list = sorted(letters.difference({ref}))
 
         for idx, allele in enumerate(allele_list):
             u_seq[off] = allele
