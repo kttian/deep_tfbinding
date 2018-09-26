@@ -12,7 +12,7 @@ def proc_snp(in_fh, out_fh, bin_size):
         fields = line.split('\t')
         chrom = fields[0]
         pos   = int(fields[1])
-        start = int(pos - int((bin_size)/2))
+        start = int(pos - 1 - int((bin_size)/2)) # positions in SNPs are ONE based!!!
         end   = start + bin_size
         assert pos == int((start + end)/2)
         out_fh.write(chrom + "\t" + str(start) + "\t" + str(end) + "\t" + line)
