@@ -22,7 +22,7 @@ def gen_allele(input_name):
     fasta = fasta_iter(input_name)
 
     letters = {'A', 'C', 'G', 'T'}
-    off = int((1000-1)/2)
+    off = int((0 + 1000)/2)
     for header, seq in fasta:   
         u_seq = list(seq.upper())
         orig_seqs.append(u_seq)
