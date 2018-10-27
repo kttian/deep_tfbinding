@@ -133,7 +133,7 @@ def process_tf(tfs, cell_set=None, expr=None, test_chroms="chr1,chr2"):
 
     labels_multitask_gz = "label.intervals_file.tsv.gz"
     cmd = scriptDir + "label_regions " + positives_str + ambiguous_str + \
-          " --genome hg19 --prefix label " + " --stride " + str(args.stride)
+          " --genome hg19 --prefix label " + " --stride " + str(args.stride) + " --test-chroms " + args.test_chroms
 
     if args.bg_stride >= 0:
         cmd += " --bg-stride " + str(args.bg_stride) + " "
