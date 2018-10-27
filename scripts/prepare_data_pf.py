@@ -44,7 +44,7 @@ use_hdf5=False
 # loop through the TFs
 #for tf in ['ZNF143']:
 
-def process_tf(tfs, cell_set=None, expr=None):
+def process_tf(tfs, cell_set=None, expr=None, test_chroms="chr1,chr2"):
             #           -4   -3    -2          -1
     #neutrophil-CTCF-human-ENCSR785YRL-optimal_idr.narrowPeak.gz
     #neutrophil-CTCF-human-ENCSR785YRL-rep1.narrowPeak.gz
@@ -152,8 +152,9 @@ def process_tf(tfs, cell_set=None, expr=None):
     os.system("pigz -d -c " + labels_multitask_gz +  " > " + labels_multitask)
 
     #make the splits
-    valid_chrom = "'chr2\t'"
-    test_chrom  = "'chr1\t'"
+    test_chroms_list = test_chroms.split(",")
+    valid_chrom = "'" + test_chroms_list[1] + "\t'"
+    test_chrom  = "'" + test_chroms_list[0] + "\t'"
 
     os.system("mkdir -p splits")
     os.system("cat " + labels_multitask + " | grep -P " + valid_chrom + " | pigz -c > splits/valid.tsv.gz")
@@ -190,8 +191,10 @@ def process_tf(tfs, cell_set=None, expr=None):
     os.system("mkdir -p splits")
 
     #make the splits
-    valid_chrom = "chr2:"
-    test_chrom  = "chr1:"
+    test_chroms_list = test_chroms.split(",")
+    valid_chrom = test_chroms_list[1] + ":"
+    test_chrom  = test_chroms_list[0] + ":"
+
     os.system("cat labels.txt | grep " + valid_chrom + " | pigz -c > splits/valid.txt.gz")
     os.system("cat labels.txt | grep " + test_chrom  + " | pigz -c > splits/test.txt.gz")
     cmd =     "cat labels.txt | grep -v \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.txt.gz"
@@ -229,6 +232,7 @@ def parse_args(args = None):
     parser.add_argument('--data-dir', type=str, default=None, help="DataDir")
     parser.add_argument('--stride', type=int, default=10, help="stride in positive regions")
     parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
+    parser.add_argument('--test-chroms', type=str, default="chr1,chr2", help="heldout the comma separated list of chroms for test and validation")
     args = parser.parse_args(args)
     return args
 
@@ -251,5 +255,5 @@ if __name__ == '__main__':
             cell_lines = args.cells.split(',')
             cell_set = set(cell_lines)
 
-        process_tf(tfs, cell_set, args.expr)
+        process_tf(tfs, cell_set, args.expr, args.test_chroms)
 

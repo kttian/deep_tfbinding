@@ -30,7 +30,8 @@ def load_chrom_sizes(chrom_sizes_fn):
     
 
 def make_windows(in_name, out_name, bin_size=200, stride=50,
-                 flank_size=400, expand = True, tasks = 0, skip_test=False, test_only=False):
+                 flank_size=400, expand = True, tasks = 0, skip_test=False, test_only=False,
+                 test_chroms="chr1,chr2"):
     '''
         takes in intervals and expands interval lengths to be a multiple of stride (50)
         outputs a list of intervals, using sliding window of length bin_size (200)
@@ -41,6 +42,7 @@ def make_windows(in_name, out_name, bin_size=200, stride=50,
         label_str = label_str + "\t0"
 
     orig_stride = stride
+    test_chrom_set = set(test_chroms.split(","))
 
     with open(in_name,'r') as tsvin, open(out_name, 'w') as tsvout:
         # for row in tsvin:
@@ -54,7 +56,7 @@ def make_windows(in_name, out_name, bin_size=200, stride=50,
                 continue
             if len(chrom) > 5:
                 continue
-            if chrom == 'chr1' or chrom == 'chr2': # these are test/valid chrom 
+            if chrom in test_chrom_set: # these are test/valid chrom 
                 if logit:
                     logit = False
                     logging.debug("in: skip_test=%d bin-size=%d, stride=%d" % (skip_test, bin_size, stride))
@@ -239,7 +241,8 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
                             ambiguous = None, regions = None,
                             bin_size=200, flank_size=400, stride=50, bg_stride=1000,
                             n_jobs=1, genome='hg19', test_only=False,
-                            min_bin_distance_to_chrom_edge=5000):
+                            min_bin_distance_to_chrom_edge=5000,
+                            test_chroms="chr1,chr2"):
     ''' 
     generate labels for multitask training
 
@@ -340,6 +343,7 @@ def parse_args(args = None):
                         help='Genome name.\nDefault: hg19.'
                         '\nOptions: hg18, hg38, mm9, mm10, dm3, dm6.')
     parser.add_argument('--test-only', type=bool, default=False, help="onlyprepare data for test and validation")
+    parser.add_argument('--test-chroms', type=str, default="chr1,chr2", help="heldout the comma separated list of chroms for test and validation")
     #parser.add_argument('--logdir', type=os.path.abspath,
     #                    help='Logging directory', default=None, required=False)
     args = parser.parse_args(args)
@@ -362,7 +366,8 @@ def run_label_regions_from_args():
                                 positives, ambiguous=ambiguous, regions=args.background, 
                                 bin_size=args.bin_size, flank_size=args.flank_size, 
                                 stride=args.stride, bg_stride=args.bg_stride,
-                                genome=args.genome, n_jobs=args.n_jobs, test_only=args.test_only)
+                                genome=args.genome, n_jobs=args.n_jobs, test_only=args.test_only,
+                                test_chroms=args.test_chroms)
     else:
         raise RuntimeError("Must pass in positives, background, and task names!")
 

@@ -37,6 +37,7 @@ def parse_args(args = None):
     parser.add_argument('--expr', type=str, default=None, help="Experiment Id")
     parser.add_argument('--pf', type=bool, default=False, help="Use pfasta")
     parser.add_argument('--min-seqlets', type=int, default=-1, help="min seqlets")
+    parser.add_argument('--test-chroms', type=str, default=None, help="heldout the comma separated list of chroms for test and validation")
     args = parser.parse_args(args)
     return args
 
@@ -102,6 +103,11 @@ if args.min_seqlets < 0 :
 else:
     min_seqlets_str = " --min-seqlets " + str(args.min_seqlets) + " "
 
+if args.test_chroms != None:
+    test_chroms_str = " --test-chroms " + args.test_chroms + " "
+else:
+    test_chroms_str = ""
+
 #-------------------------------
 if start <= 10:
 #0 prepare_data with union of positives (no background) and train a model
@@ -116,7 +122,7 @@ if start <= 10:
 
 #-------------------------------
 if start <= 20 and end > 20:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --no-bg True --stride " + str(args.stride)
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --no-bg True --stride " + str(args.stride) + test_chroms_str
     if num_tasks >1 :
         cmd += hdf5_str # for single task, there is no need to pre-train, but we need the tsv for interpretation
     cmd += " > logs/pre_prepare.txt 2>&1"
@@ -153,7 +159,7 @@ if start <= 30 and end > 30:
 #1 prepare_data with background for the main training
 #-------------------------------
 if start <= 40 and end > 40:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --stride " + str(args.stride)
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --stride " + str(args.stride) + test_chroms_str
     cmd += hdf5_str + " > logs/prepare.txt 2>&1"
     os.system(cmd)
     print("step 40 prepare_data done")
@@ -184,15 +190,21 @@ if start <= 52 and end > 52:
 
 #-------------------------------
 if start <= 55 and end > 55:
+    if args.test_chroms != None:
+        test_chroms = args.test_chroms
+    else:
+        test_chroms = "chr1,chr2"
+    test_chroms_list = test_chroms.split(",")
+    test_chrom = test_chroms_list[0]
     cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + cell_str + expr_str + data_dir_str
-    cmd += " | grep -v -P 'chr1\t' | sort -k1,1 -k2,2n > interpret.tsv"
+    cmd += " | grep -v -P '" + test_chrom + "\t' | sort -k1,1 -k2,2n > interpret.tsv"
     os.system(cmd)
 
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
 
 #-------------------------------
 if start <= 60 and end > 60:
-    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
+    cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + test_chroms_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
     os.system(cmd)
     cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/valid_data_loader_config_pf.yaml >> logs/test.txt 2>&1"
     os.system(cmd)
