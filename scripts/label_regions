@@ -216,7 +216,8 @@ def gen_intersects(pos_unzips, amb_unzips, tmp_regions):
     return pos_intersects, amb_intersects
 
 def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
-                                bin_size=200, flank_size=400, bg_stride=1000, test_only=False):
+                                bin_size=200, flank_size=400, bg_stride=1000, test_only=False,
+                                test_chroms="chr1,chr2"):
     if regions == None:
         # if no background regions were specified, use the union of positives as regions
         tmp_regions = tmp_core_regions
@@ -227,7 +228,8 @@ def handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn,
 
         tmp_bkg_regions = tmpDir + "_tmp_bkg_regions.tsv"
         # for background, 200 bin_size, 1000 stride, 400 flank will create tiled windows
-        make_windows(tmp_regions, tmp_bkg_regions, bin_size=bin_size, stride=bg_stride, test_only=test_only)     
+        make_windows(tmp_regions, tmp_bkg_regions, bin_size=bin_size, stride=bg_stride, 
+                     test_only=test_only, test_chroms=test_chroms)     
 
         os.system("cat " + tmp_core_regions + " >> " + tmp_bkg_regions)
 
@@ -280,11 +282,12 @@ def label_regions_multitask(labels_multitask, chrom_sizes_fn, positives,
         skip_test = False
         
     make_windows(tmp_pos_regions, tmp_core_regions, bin_size=bin_size, stride=stride, 
-                 skip_test=skip_test, test_only=test_only)
+                 skip_test=skip_test, test_only=test_only, test_chroms=test_chroms)
 
     tmp_regions = handle_background_intervals(regions, tmp_core_regions, chrom_sizes_fn, 
                                               bin_size=bin_size, flank_size=flank_size,
-                                              bg_stride=bg_stride, test_only=test_only)
+                                              bg_stride=bg_stride, test_only=test_only,
+                                              test_chroms=test_chroms)
 
     logging.info("LABEL_REGIONS sort merge done")
 
