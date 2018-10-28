@@ -152,14 +152,15 @@ def process_tf(tfs, cell_set=None, expr=None, test_chroms="chr1,chr2"):
     os.system("pigz -d -c " + labels_multitask_gz +  " > " + labels_multitask)
 
     #make the splits
-    test_chroms_list = test_chroms.split(",")
-    valid_chrom = "'" + test_chroms_list[1] + "\t'"
-    test_chrom  = "'" + test_chroms_list[0] + "\t'"
-
     os.system("mkdir -p splits")
+    test_chroms_list = test_chroms.split(",")
+    valid_chrom = "'" + test_chroms_list[-1] + "\t'"
+    if len(test_chroms_list) > 2: # more than one test chrom
+        test_chrom  = "'" + test_chroms_list[0] + "\t|" + test_chroms_list[1] + "\t'"
+    else:
+        test_chrom  = "'" + test_chroms_list[0] + "\t'"
     os.system("cat " + labels_multitask + " | grep -P " + valid_chrom + " | pigz -c > splits/valid.tsv.gz")
     os.system("cat " + labels_multitask + " | grep -P " + test_chrom  + " | pigz -c > splits/test.tsv.gz")
-    #cmd =     "cat " + labels_multitask + " | grep -v -P \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.tsv.gz"
     cmd =     "cat " + labels_multitask + " | grep -v -P " + test_chrom + " | grep -v -P " + valid_chrom + " | grep -v -P '^id' | pigz -c > splits/train.tsv.gz"
     os.system(cmd)
 
@@ -192,12 +193,15 @@ def process_tf(tfs, cell_set=None, expr=None, test_chroms="chr1,chr2"):
 
     #make the splits
     test_chroms_list = test_chroms.split(",")
-    valid_chrom = test_chroms_list[1] + ":"
-    test_chrom  = test_chroms_list[0] + ":"
-
-    os.system("cat labels.txt | grep " + valid_chrom + " | pigz -c > splits/valid.txt.gz")
-    os.system("cat labels.txt | grep " + test_chrom  + " | pigz -c > splits/test.txt.gz")
-    cmd =     "cat labels.txt | grep -v \"" + test_chrom  + "\|"+ valid_chrom + "\|^id" + "\" | pigz -c > splits/train.txt.gz"
+    valid_chrom = "'" + test_chroms_list[-1] + ":'"
+    if len(test_chroms_list) > 2: # more than one test chrom
+        test_chrom  = "'" + test_chroms_list[0] + ":|" + test_chroms_list[1] + ":'"
+    else:
+        test_chrom  = "'" + test_chroms_list[0] + ":'"
+    os.system("cat labels.txt | grep -P " + valid_chrom + " | pigz -c > splits/valid.txt.gz")
+    os.system("cat labels.txt | grep -P " + test_chrom  + " | pigz -c > splits/test.txt.gz")
+    cmd =     "cat labels.txt | grep -v -P " + test_chrom + " | grep -v -P " + valid_chrom + " | grep -v -P '^id' | pigz -c > splits/train.txt.gz"
+    print(cmd)
     os.system(cmd)
 
     os.system("pigz -f labels.txt")

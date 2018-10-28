@@ -195,9 +195,12 @@ if start <= 55 and end > 55:
     else:
         test_chroms = "chr1,chr2"
     test_chroms_list = test_chroms.split(",")
-    test_chrom = test_chroms_list[0]
+    if len(test_chroms_list) > 2: # more than one test chrom
+        test_chrom  = "'" + test_chroms_list[0] + "\t|" + test_chroms_list[1] + "\t'"
+    else:
+        test_chrom  = "'" + test_chroms_list[0] + "\t'"
     cmd = "python $TFNET_ROOT/scripts/pick_summit.py --tfs " + tfs + cell_str + expr_str + data_dir_str
-    cmd += " | grep -v -P '" + test_chrom + "\t' | sort -k1,1 -k2,2n > interpret.tsv"
+    cmd += " | grep -v -P " + test_chrom + " | sort -k1,1 -k2,2n > interpret.tsv"
     os.system(cmd)
 
     os.system("bedtools getfasta -fi " + genomeDir + "hg19.fa -bed interpret.tsv -fo interpret.fa")
