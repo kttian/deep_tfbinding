@@ -209,6 +209,8 @@ if start <= 55 and end > 55:
 if start <= 60 and end > 60:
     cmd = "python $TFNET_ROOT/scripts/prepare_data_pf.py --tfs " + tfs + cell_str + expr_str + data_dir_str + test_chroms_str + " --test-only True --bg-stride=50 > logs/test.txt 2>&1"
     os.system(cmd)
+
+if start <= 65 and end > 65:
     cmd = "python $TFNET_ROOT/../momma_dragonn/scripts/momma_dragonn_eval --valid_data_loader_config config/test_data_loader_config_pf.yaml >> logs/test.txt 2>&1"
     os.system(cmd)
     os.system("python $TFNET_ROOT/scripts/analyze_data.py > logs/analyze.txt")
